@@ -1,0 +1,64 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Plus Jakarta Sans', system-ui, sans-serif;
+  --color-diapal-50: #ecfdf9;
+  --color-diapal-100: #d1faf2;
+  --color-diapal-200: #a7f3e6;
+  --color-diapal-300: #6ee7d6;
+  --color-diapal-400: #34d3c2;
+  --color-diapal-500: #10b5a4;
+  --color-diapal-600: #0d9488;
+  --color-diapal-700: #0f766e;
+  --color-diapal-800: #115e59;
+  --color-diapal-900: #134e48;
+  --color-warm-50: #fef7ee;
+  --color-warm-100: #fdedd6;
+  --color-warm-200: #f9d7ac;
+  --color-warm-300: #f4bc77;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f8fafc;
+  color: #0f172a;
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+#root {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Mobilde input/textarea font en az 16px – iOS zoom önleme */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea {
+  font-size: 16px;
+}
+@media (min-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea {
+    font-size: inherit;
+  }
+}
