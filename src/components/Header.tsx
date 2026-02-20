@@ -109,12 +109,12 @@ export default function Header() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-14 sm:h-16 md:h-18">
-          <Link to="/" className="flex items-center h-full min-h-[44px] min-w-[44px] shrink-0 py-1">
-            <span className="h-full flex items-center max-w-[200px] sm:max-w-[220px] min-h-[2.5rem]">
+          <Link to="/" className="flex items-center h-full min-h-[44px] min-w-[44px] shrink-0 py-0.5">
+            <span className="h-full flex items-center max-w-[200px] sm:max-w-[260px] min-h-0">
               <img
                 src="/logo.png"
                 alt="Diapal"
-                className="max-h-full max-w-full w-auto h-[2.75rem] sm:h-[3.25rem] object-contain object-center"
+                className="max-h-full max-w-full w-auto h-[3.25rem] sm:h-[3.75rem] md:h-[4rem] object-contain object-center"
               />
             </span>
           </Link>

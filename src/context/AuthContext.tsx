@@ -7,6 +7,7 @@ export type User = {
   email: string
   name: string
   role: UserRole
+  diabetesType?: string
   branch?: string
   city?: string
 }
@@ -63,6 +64,7 @@ type AuthContextValue = {
     password: string
     name: string
     role: UserRole
+    diabetesType: string
     branch?: string
     city?: string
   }) => { ok: boolean; error?: string }
@@ -98,6 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: string
       name: string
       role: UserRole
+      diabetesType: string
       branch?: string
       city?: string
     }) => {
@@ -113,6 +116,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         name: data.name.trim(),
         password: data.password,
         role: data.role,
+        diabetesType: data.diabetesType,
         branch: data.branch?.trim(),
         city: data.city?.trim(),
       }
