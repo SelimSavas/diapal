@@ -19,6 +19,7 @@ const navStructure: (NavLink | NavDropdown)[] = [
     id: 'icerik',
     label: 'İçerik',
     items: [
+      { to: '/icerik', label: 'Genel bakış' },
       { to: '/bilgi', label: 'Diyabet Bilgisi' },
       { to: '/makaleler', label: 'Makaleler' },
       { to: '/tarifler', label: 'Tarifler' },
@@ -31,6 +32,7 @@ const navStructure: (NavLink | NavDropdown)[] = [
     id: 'araclar',
     label: 'Araçlar',
     items: [
+      { to: '/araclar', label: 'Genel bakış' },
       { to: '/karbonhidrat-sayaci', label: 'KH Sayacı' },
       { to: '/hba1c-tahminleyici', label: 'HbA1c Tahmini' },
       { to: '/olcum-gunlugu', label: 'Ölçüm Günlüğü' },
@@ -44,6 +46,7 @@ const navStructure: (NavLink | NavDropdown)[] = [
     id: 'platform',
     label: 'Platform',
     items: [
+      { to: '/platform', label: 'Genel bakış' },
       { to: '/doktorlar', label: 'Doktor Bul' },
       { to: '/forum', label: 'Forum' },
       { to: '/mesajlar', label: 'Mesajlar' },
@@ -55,6 +58,7 @@ const navStructure: (NavLink | NavDropdown)[] = [
     id: 'kurumsal',
     label: 'Kurumsal',
     items: [
+      { to: '/kurumsal', label: 'Genel bakış' },
       { to: '/bilgi', label: 'Biz Kimiz?' },
       { to: '/sss', label: 'SSS' },
       { to: '/iletisim', label: 'Bize Ulaşın' },

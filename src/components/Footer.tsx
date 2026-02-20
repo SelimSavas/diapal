@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../context/AuthContext'
 
 const quickAccess = [
+  { to: '/icerik', label: 'Genel bakış' },
   { to: '/bilgi', label: 'Diyabet Bilgisi' },
   { to: '/makaleler', label: 'Makaleler' },
   { to: '/tarifler', label: 'Tarifler' },
@@ -10,6 +12,7 @@ const quickAccess = [
 ]
 
 const tools = [
+  { to: '/araclar', label: 'Genel bakış' },
   { to: '/karbonhidrat-sayaci', label: 'KH Sayacı' },
   { to: '/hba1c-tahminleyici', label: 'HbA1c Tahmini' },
   { to: '/olcum-gunlugu', label: 'Ölçüm Günlüğü' },
@@ -19,6 +22,7 @@ const tools = [
 ]
 
 const platform = [
+  { to: '/platform', label: 'Genel bakış' },
   { to: '/doktorlar', label: 'Doktor Bul' },
   { to: '/forum', label: 'Forum' },
   { to: '/mesajlar', label: 'Mesajlar' },
@@ -26,6 +30,7 @@ const platform = [
 ]
 
 const corporate = [
+  { to: '/kurumsal', label: 'Genel bakış' },
   { to: '/bilgi', label: 'Biz Kimiz?' },
   { to: '/sss', label: 'SSS' },
   { to: '/iletisim', label: 'Bize Ulaşın' },
@@ -60,6 +65,7 @@ function NavColumn({ title, items }: { title: string; items: { to: string; label
 }
 
 export default function Footer() {
+  const { user } = useAuth()
   const [email, setEmail] = useState('')
   const [consent, setConsent] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -80,15 +86,27 @@ export default function Footer() {
           <p className="text-slate-400 text-sm md:text-base font-500">
             Diyabetteki dostun — bilgi, uzman ve topluluk tek platformda.
           </p>
-          <Link
-            to="/kayit"
-            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-diapal-600 text-white px-5 py-2.5 text-sm font-600 hover:bg-diapal-500 transition-colors"
-          >
-            Ücretsiz Katıl
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0-5 5m5-5H6" />
-            </svg>
-          </Link>
+          {user ? (
+            <Link
+              to="/profil"
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-diapal-600 text-white px-5 py-2.5 text-sm font-600 hover:bg-diapal-500 transition-colors"
+            >
+              Profilim
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0-5 5m5-5H6" />
+              </svg>
+            </Link>
+          ) : (
+            <Link
+              to="/kayit"
+              className="shrink-0 inline-flex items-center justify-center gap-2 rounded-xl bg-diapal-600 text-white px-5 py-2.5 text-sm font-600 hover:bg-diapal-500 transition-colors"
+            >
+              Ücretsiz Katıl
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0-5 5m5-5H6" />
+              </svg>
+            </Link>
+          )}
         </div>
       </div>
 

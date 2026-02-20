@@ -1,23 +1,271 @@
-import { Link, useNavigate } from 'react-router-dom'
+import { useRef, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getNews } from '../lib/news'
 import { getFeaturedStory } from '../lib/stories'
 
 const HOME_NEWS_COUNT = 3
 
+const iconSize = 32
+
+function EasyAccessIcon({ type }: { type: string }) {
+  const className = 'shrink-0'
+  switch (type) {
+    case 'book':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+          <path d="M8 7h8" /><path d="M8 11h6" />
+        </svg>
+      )
+    case 'document':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" />
+        </svg>
+      )
+    case 'recipe':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" />
+          <path d="M7 2v20" />
+          <path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" />
+        </svg>
+      )
+    case 'sparkles':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+          <path d="M5 3v4" /><path d="M3 5h4" /><path d="M19 17v4" /><path d="M17 19h4" />
+        </svg>
+      )
+    case 'megaphone':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="m3 11 18-5v12L3 14v-3z" />
+          <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+        </svg>
+      )
+    case 'calculator':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect width="16" height="20" x="4" y="2" rx="2" />
+          <path d="M8 6h.01" /><path d="M8 10h.01" /><path d="M8 14h.01" /><path d="M12 6h.01" /><path d="M12 10h.01" /><path d="M12 14h.01" />
+          <path d="M16 10h.01" /><path d="M16 14h.01" />
+        </svg>
+      )
+    case 'chart':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 3v18h18" />
+          <path d="m19 9-5 5-4-4-3 3" />
+        </svg>
+      )
+    case 'clipboard':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+          <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+          <path d="M12 11h4" /><path d="M12 16h4" /><path d="M8 11h.01" /><path d="M8 16h.01" />
+        </svg>
+      )
+    case 'pill':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z" />
+          <path d="m8.5 8.5 7 7" />
+        </svg>
+      )
+    case 'checkCircle':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+          <path d="m9 11 3 3L22 4" />
+        </svg>
+      )
+    case 'trophy':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
+          <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
+          <path d="M4 22h16" />
+          <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
+          <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
+          <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
+        </svg>
+      )
+    case 'doctor':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+          <circle cx="9" cy="7" r="4" />
+          <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+          <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+          <path d="M15 11h6" /><path d="M18 8v6" />
+        </svg>
+      )
+    case 'forum':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        </svg>
+      )
+    case 'mail':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect width="20" height="16" x="2" y="4" rx="2" />
+          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+        </svg>
+      )
+    case 'heart':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+        </svg>
+      )
+    case 'building':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect width="16" height="20" x="4" y="2" rx="2" ry="2" />
+          <path d="M9 22v-4h6v4" /><path d="M8 6h.01" /><path d="M16 6h.01" /><path d="M12 6h.01" /><path d="M12 10h.01" /><path d="M12 14h.01" /><path d="M16 10h.01" /><path d="M16 14h.01" /><path d="M8 10h.01" /><path d="M8 14h.01" />
+        </svg>
+      )
+    case 'help':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <path d="M12 17h.01" />
+        </svg>
+      )
+    case 'contact':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+        </svg>
+      )
+    case 'message':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" />
+        </svg>
+      )
+    case 'lock':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      )
+    case 'fileText':
+      return (
+        <svg className={className} width={iconSize} height={iconSize} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
+          <path d="M14 2v6h6" /><path d="M16 13H8" /><path d="M16 17H8" /><path d="M10 9H8" />
+        </svg>
+      )
+    default:
+      return null
+  }
+}
+
+const ALL_SECTIONS = [
+  {
+    title: 'İçerik',
+    to: '/icerik',
+    items: [
+      { to: '/bilgi', label: 'Diyabet Bilgisi', iconType: 'book' },
+      { to: '/makaleler', label: 'Makaleler', iconType: 'document' },
+      { to: '/tarifler', label: 'Tarifler', iconType: 'recipe' },
+      { to: '/hikayeler', label: 'Hikayeler', iconType: 'sparkles' },
+      { to: '/haberler-duyurular', label: 'Haberler ve Duyurular', iconType: 'megaphone' },
+    ],
+  },
+  {
+    title: 'Araçlar',
+    to: '/araclar',
+    items: [
+      { to: '/karbonhidrat-sayaci', label: 'KH Sayacı', iconType: 'calculator' },
+      { to: '/hba1c-tahminleyici', label: 'HbA1c Tahmini', iconType: 'chart' },
+      { to: '/olcum-gunlugu', label: 'Ölçüm Günlüğü', iconType: 'clipboard' },
+      { to: '/ilac-hatirlatici', label: 'İlaç Hatırlatıcı', iconType: 'pill' },
+      { to: '/gunluk-gorevler', label: 'Günlük Görevler', iconType: 'checkCircle' },
+      { to: '/meydan-okumalar', label: 'Meydan Okumalar', iconType: 'trophy' },
+    ],
+  },
+  {
+    title: 'Platform',
+    to: '/platform',
+    items: [
+      { to: '/doktorlar', label: 'Doktor Bul', iconType: 'doctor' },
+      { to: '/forum', label: 'Forum', iconType: 'forum' },
+      { to: '/mesajlar', label: 'Mesajlar', iconType: 'mail' },
+      { to: '/favorilerim', label: 'Favorilerim', iconType: 'heart' },
+    ],
+  },
+  {
+    title: 'Kurumsal',
+    to: '/kurumsal',
+    items: [
+      { to: '/bilgi', label: 'Biz Kimiz?', iconType: 'building' },
+      { to: '/sss', label: 'SSS', iconType: 'help' },
+      { to: '/iletisim', label: 'Bize Ulaşın', iconType: 'contact' },
+      { to: '/geri-bildirim', label: 'Geri bildirim', iconType: 'message' },
+      { to: '/gizlilik', label: 'Gizlilik', iconType: 'lock' },
+      { to: '/kullanim-sartlari', label: 'Kullanım Şartları', iconType: 'fileText' },
+    ],
+  },
+]
+
 export default function Home() {
   const { user } = useAuth()
-  const navigate = useNavigate()
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const autoScrollPaused = useRef(false)
+  const pauseUntil = useRef(0)
 
-  const handleToolClick = (path: string) => {
-    if (user) navigate(path)
-    else navigate('/kayit')
-  }
+  const autoScroll = useCallback(() => {
+    const el = scrollRef.current
+    if (!el || autoScrollPaused.current || Date.now() < pauseUntil.current) return
+    const segmentWidth = el.scrollWidth / 2
+    if (segmentWidth <= 0) return
+    el.scrollLeft += 1
+    if (el.scrollLeft >= segmentWidth - 1) el.scrollLeft = 0
+  }, [])
+
+  useEffect(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const interval = setInterval(autoScroll, 35)
+    const pause = () => {
+      autoScrollPaused.current = true
+      pauseUntil.current = Date.now() + 1200
+    }
+    const resume = () => {
+      autoScrollPaused.current = false
+    }
+    el.addEventListener('touchstart', pause)
+    el.addEventListener('wheel', pause)
+    el.addEventListener('mousedown', pause)
+    el.addEventListener('mouseenter', resume)
+    const t = setInterval(() => {
+      if (Date.now() >= pauseUntil.current) autoScrollPaused.current = false
+    }, 500)
+    return () => {
+      clearInterval(interval)
+      clearInterval(t)
+      el.removeEventListener('touchstart', pause)
+      el.removeEventListener('wheel', pause)
+      el.removeEventListener('mousedown', pause)
+      el.removeEventListener('mouseenter', resume)
+    }
+  }, [autoScroll])
 
   return (
     <>
       <section className="relative overflow-hidden bg-gradient-to-br from-diapal-700 via-diapal-600 to-emerald-500 text-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-24 relative">
+        <div className="max-w-[1250px] h-[500px] mx-auto px-4 sm:px-6 py-12 sm:py-16 md:py-24 relative">
           <div className="grid gap-8 sm:gap-10 md:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] items-center">
             <div className="space-y-6 sm:space-y-8">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-3 py-1.5 text-xs font-500 text-emerald-50">
@@ -35,19 +283,19 @@ export default function Home() {
               </div>
               <div className="flex flex-wrap items-center gap-3">
                 <Link
-                  to="/kayit"
+                  to={user ? '/doktorlar' : '/kayit'}
                   className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-900 px-6 py-3.5 min-h-[48px] text-sm font-600 text-white shadow-sm hover:bg-slate-800 active:bg-slate-700 transition-colors touch-manipulation"
                 >
-                  Diapal’a ücretsiz katıl
+                  {user ? 'Doktor Bul' : 'Diapal’a ücretsiz katıl'}
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0-5 5m5-5H6" />
                   </svg>
                 </Link>
                 <Link
-                  to="/doktorlar"
+                  to={user ? '/forum' : '/doktorlar'}
                   className="inline-flex items-center justify-center gap-2 rounded-full border border-white/50 px-4 py-3 min-h-[48px] text-xs md:text-sm font-500 text-diapal-50 hover:border-white hover:text-white active:bg-white/10 transition-colors touch-manipulation"
                 >
-                  Önce doktorları incele
+                  {user ? 'Forum' : 'Önce doktorları incele'}
                 </Link>
               </div>
               <div className="flex flex-wrap gap-4 text-xs text-diapal-50/90">
@@ -112,66 +360,39 @@ export default function Home() {
               </figure>
             </div>
           </div>
+        </div>
 
-          <div className="mt-8 md:mt-10 grid sm:grid-cols-2 gap-3 md:gap-4">
-            <button
-              type="button"
-              onClick={() => handleToolClick('/karbonhidrat-sayaci')}
-              className="group text-left rounded-xl border border-white/20 bg-white/10 backdrop-blur p-4 md:p-5 hover:bg-white/20 hover:border-white/30 transition-all shadow"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-lg">
-                  🍽️
-                </span>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-600 uppercase tracking-wider text-emerald-200/90">
-                    Üyelere özel
-                  </span>
-                  <h3 className="mt-0.5 text-base font-700 text-white group-hover:text-emerald-50 transition-colors">
-                    Akıllı Karbonhidrat Sayacı
-                  </h3>
-                  <p className="mt-1.5 text-xs text-diapal-100 leading-snug">
-                    Yediğin yemeği yaz veya fotoğrafını yükle; tahmini karbonhidrat ve kalori al. Tip 1’de insülin dozunu planlamanda yardımcı.
-                  </p>
-                  <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-500 text-white/90 group-hover:gap-1.5 transition-all">
-                    {user ? 'Araca git' : 'Kullanmak için kayıt ol'}
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </span>
-                </div>
-              </div>
-            </button>
-            <button
-              type="button"
-              onClick={() => handleToolClick('/hba1c-tahminleyici')}
-              className="group text-left rounded-xl border border-white/20 bg-white/10 backdrop-blur p-4 md:p-5 hover:bg-white/20 hover:border-white/30 transition-all shadow"
-            >
-              <div className="flex items-start gap-3">
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/20 text-lg">
-                  📊
-                </span>
-                <div className="min-w-0">
-                  <span className="text-[10px] font-600 uppercase tracking-wider text-emerald-200/90">
-                    Üyelere özel
-                  </span>
-                  <h3 className="mt-0.5 text-base font-700 text-white group-hover:text-emerald-50 transition-colors">
-                    HbA1c Tahminleyicisi
-                  </h3>
-                  <p className="mt-1.5 text-xs text-diapal-100 leading-snug">
-                    Günlük ölçümlerini gir; 3 aylık ortalama şekere göre tahmini HbA1c değerini gör.
-                  </p>
-                  <span className="mt-2.5 inline-flex items-center gap-1 text-xs font-500 text-white/90 group-hover:gap-1.5 transition-all">
-                    {user ? 'Araca git' : 'Kullanmak için kayıt ol'}
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </span>
-                </div>
-              </div>
-            </button>
+        {/* Tam genişlik kaydırma şeridi – sitenin solundan sağına */}
+        <div
+          ref={scrollRef}
+          data-hide-scrollbar
+          className="w-full overflow-x-auto overflow-y-hidden scroll-smooth touch-pan-x py-2"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <div className="flex flex-nowrap gap-4 md:gap-5 pl-4 pr-4 md:pl-6 md:pr-6" style={{ width: 'max-content' }}>
+            {[1, 2].map((copy) =>
+              ALL_SECTIONS.map((section) =>
+                section.items.map((item) => (
+                  <Link
+                    key={`${copy}-${section.title}-${item.to}`}
+                    to={item.to}
+                    className="flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/10 hover:border-white/20 transition-all text-center shrink-0 w-[100px] md:w-[120px]"
+                  >
+                    <span className="flex h-16 w-16 md:h-20 md:w-20 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-white">
+                      <EasyAccessIcon type={item.iconType} />
+                    </span>
+                    <span className="text-xs md:text-sm font-600 text-white leading-tight line-clamp-2">
+                      {item.label}
+                    </span>
+                  </Link>
+                ))
+              )
+            )}
           </div>
         </div>
+        <style>{`
+          [data-hide-scrollbar]::-webkit-scrollbar { display: none; }
+        `}</style>
       </section>
 
       {/* Haberler ve Duyurular – görselleriyle */}
@@ -365,15 +586,27 @@ export default function Home() {
           </div>
 
           <div className="mt-10 text-center">
-            <Link
-              to="/kayit"
-              className="inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[48px] rounded-xl bg-diapal-600 text-white font-600 hover:bg-diapal-700 active:bg-diapal-800 transition-colors touch-manipulation"
-            >
-              Ücretsiz Kayıt Ol
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </Link>
+            {user ? (
+              <Link
+                to="/profil"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[48px] rounded-xl bg-diapal-600 text-white font-600 hover:bg-diapal-700 active:bg-diapal-800 transition-colors touch-manipulation"
+              >
+                Profilime git
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+            ) : (
+              <Link
+                to="/kayit"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3.5 min-h-[48px] rounded-xl bg-diapal-600 text-white font-600 hover:bg-diapal-700 active:bg-diapal-800 transition-colors touch-manipulation"
+              >
+                Ücretsiz Kayıt Ol
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </Link>
+            )}
           </div>
         </div>
       </section>

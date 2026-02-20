@@ -31,6 +31,10 @@ import DoktorDetay from './pages/DoktorDetay'
 import Favorilerim from './pages/Favorilerim'
 import Admin from './pages/Admin'
 import Mesajlar from './pages/Mesajlar'
+import Icerik from './pages/Icerik'
+import Araclar from './pages/Araclar'
+import Platform from './pages/Platform'
+import Kurumsal from './pages/Kurumsal'
 
 function App() {
   return (
@@ -38,6 +42,10 @@ function App() {
       <Routes>
         <Route path="/" element={<Layout />}>
           <Route index element={<Home />} />
+          <Route path="icerik" element={<Icerik />} />
+          <Route path="araclar" element={<Araclar />} />
+          <Route path="platform" element={<Platform />} />
+          <Route path="kurumsal" element={<Kurumsal />} />
           <Route path="bilgi" element={<Bilgi />} />
           <Route path="makaleler" element={<Makaleler />} />
           <Route path="makaleler/:slug" element={<MakaleDetay />} />
