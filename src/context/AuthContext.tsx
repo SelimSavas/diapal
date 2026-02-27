@@ -70,6 +70,8 @@ function saveCurrentUser(user: User | null) {
   }
 }
 
+export type UserForAdmin = { id: string; email: string; name: string; role: UserRole; branch?: string; city?: string }
+
 type AuthContextValue = {
   user: User | null
   login: (email: string, password: string) => { ok: boolean; error?: string }
@@ -84,6 +86,8 @@ type AuthContextValue = {
   }) => { ok: boolean; error?: string }
   logout: () => void
   deleteAccount: (userId: string) => { ok: boolean; error?: string }
+  addDoctor: (data: { email: string; name: string; password: string; branch?: string; city?: string }) => { ok: boolean; error?: string }
+  getUsersForAdmin: () => UserForAdmin[]
   getUsersPublic: () => { id: string; name: string }[]
   getUsersPublicWithRole: () => { id: string; name: string; role: UserRole }[]
 }
@@ -119,7 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       branch?: string
       city?: string
     }) => {
-      if (data.role === 'admin') return { ok: false, error: 'Admin hesabı kayıt ile oluşturulamaz.' }
+      if (data.role !== 'hasta') return { ok: false, error: 'Sadece üye kaydı yapılabilir. Doktor hesapları yönetici tarafından oluşturulur.' }
       const users = loadUsers()
       const normalized = data.email.trim().toLowerCase()
       if (users.some((u) => u.email.toLowerCase() === normalized)) {
@@ -171,13 +175,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return loadUsers().map((u) => ({ id: u.id, name: u.name, role: u.role }))
   }, [])
 
+  const addDoctor = useCallback((data: { email: string; name: string; password: string; branch?: string; city?: string }) => {
+    const users = loadUsers()
+    const current = users.find((u) => u.id === user?.id)
+    if (!current || current.role !== 'admin') return { ok: false, error: 'Yetkiniz yok.' }
+    const normalized = data.email.trim().toLowerCase()
+    if (users.some((u) => u.email.toLowerCase() === normalized)) {
+      return { ok: false, error: 'Bu e-posta adresi zaten kullanılıyor.' }
+    }
+    const newUser: StoredUser = {
+      id: `user_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+      email: data.email.trim(),
+      name: data.name.trim(),
+      password: data.password,
+      role: 'doktor',
+      branch: data.branch?.trim(),
+      city: data.city?.trim(),
+    }
+    users.push(newUser)
+    saveUsers(users)
+    return { ok: true }
+  }, [user?.id])
+
+  const getUsersForAdmin = useCallback((): UserForAdmin[] => {
+    const users = loadUsers()
+    const current = users.find((u) => u.id === user?.id)
+    if (!current || current.role !== 'admin') return []
+    return users.map((u) => ({ id: u.id, email: u.email, name: u.name, role: u.role, branch: u.branch, city: u.city }))
+  }, [user?.id])
+
   useEffect(() => {
     const stored = loadStoredUser()
     if (stored && !user) setUser(stored)
   }, [user])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, deleteAccount, getUsersPublic, getUsersPublicWithRole }}>
+    <AuthContext.Provider value={{ user, login, register, logout, deleteAccount, addDoctor, getUsersForAdmin, getUsersPublic, getUsersPublicWithRole }}>
       {children}
     </AuthContext.Provider>
   )

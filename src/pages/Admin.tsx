@@ -43,7 +43,18 @@ const RECIPE_CATEGORIES: { id: RecipeCategory; label: string }[] = [
   { id: 'icecek', label: 'İçecek' },
 ]
 
-type Tab = 'makaleler' | 'haberler' | 'tarifler' | 'forum' | 'geri-bildirim' | 'site'
+type Tab = 'makaleler' | 'haberler' | 'tarifler' | 'doktorlar' | 'forum' | 'geri-bildirim' | 'site'
+
+const DOCTOR_BRANCH_OPTIONS = [
+  { id: 'endocrinology', label: 'Endokrinoloji Uzmanı' },
+  { id: 'internal', label: 'İç Hastalıkları Uzmanı' },
+  { id: 'family', label: 'Aile Hekimi' },
+  { id: 'pedi_endocrinology', label: 'Çocuk Endokrinolojisi' },
+  { id: 'dietitian', label: 'Diyetisyen' },
+  { id: 'psych', label: 'Psikolog / Psikolojik Danışman' },
+  { id: 'nurse', label: 'Diyabet Hemşiresi' },
+  { id: 'other', label: 'Diğer sağlık profesyoneli' },
+]
 
 export default function Admin() {
   const { user } = useAuth()
@@ -93,6 +104,7 @@ export default function Admin() {
     { id: 'makaleler', label: 'Makaleler' },
     { id: 'haberler', label: 'Haber & Duyuru' },
     { id: 'tarifler', label: 'Yemek Tarifleri' },
+    { id: 'doktorlar', label: 'Doktorlar' },
     { id: 'forum', label: 'Forum' },
     { id: 'geri-bildirim', label: 'Geri bildirim' },
     { id: 'site', label: 'Site ayarları' },
@@ -123,6 +135,7 @@ export default function Admin() {
       {tab === 'makaleler' && <AdminMakaleler />}
       {tab === 'haberler' && <AdminHaberler />}
       {tab === 'tarifler' && <AdminTarifler />}
+      {tab === 'doktorlar' && <AdminDoktorlar />}
       {tab === 'forum' && (
         <AdminForum
           topics={topics}
@@ -514,6 +527,161 @@ function AdminTarifler() {
         </ul>
       )}
       {!loading && list.length === 0 && <p className="text-slate-500">Henüz admin tarifi yok. Yukarıdan ekleyin. (Statik tarifler sitede görünmeye devam eder.)</p>}
+    </div>
+  )
+}
+
+function AdminDoktorlar() {
+  const { addDoctor, getUsersForAdmin, deleteAccount } = useAuth()
+  const [doctors, setDoctors] = useState<{ id: string; email: string; name: string; role: string; branch?: string; city?: string }[]>(() =>
+    getUsersForAdmin().filter((u) => u.role === 'doktor')
+  )
+  const [showForm, setShowForm] = useState(false)
+  const [email, setEmail] = useState('')
+  const [name, setName] = useState('')
+  const [password, setPassword] = useState('')
+  const [branch, setBranch] = useState('')
+  const [city, setCity] = useState('')
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const refreshDoctors = () => setDoctors(getUsersForAdmin().filter((u) => u.role === 'doktor'))
+
+  const resetForm = () => {
+    setShowForm(false)
+    setEmail('')
+    setName('')
+    setPassword('')
+    setBranch('')
+    setCity('')
+    setError('')
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    if (!email.trim() || !name.trim() || !password) {
+      setError('E-posta, ad soyad ve şifre zorunludur.')
+      return
+    }
+    if (password.length < 6) {
+      setError('Şifre en az 6 karakter olmalıdır.')
+      return
+    }
+    setSaving(true)
+    const branchLabel = branch ? (DOCTOR_BRANCH_OPTIONS.find((o) => o.id === branch)?.label ?? branch) : undefined
+    const result = addDoctor({
+      email: email.trim().toLowerCase(),
+      name: name.trim(),
+      password,
+      branch: branchLabel,
+      city: city.trim() || undefined,
+    })
+    setSaving(false)
+    if (result.ok) {
+      resetForm()
+      refreshDoctors()
+    } else {
+      setError(result.error ?? 'Doktor eklenemedi.')
+    }
+  }
+
+  const handleDelete = (id: string) => {
+    if (!confirm('Bu doktor hesabını kaldırmak istediğinize emin misiniz? Doktor giriş yapamaz hale gelir.')) return
+    deleteAccount(id)
+    refreshDoctors()
+  }
+
+  return (
+    <div>
+      <p className="text-slate-600 text-sm mb-4">
+        Doktor hesaplarını buradan ekleyin. E-posta ve şifre ile giriş yapacaklardır.
+      </p>
+      <button
+        type="button"
+        onClick={() => { setError(''); setShowForm(!showForm) }}
+        className="mb-4 px-4 py-2 rounded-xl bg-diapal-600 text-white text-sm font-600 hover:bg-diapal-700"
+      >
+        {showForm ? 'Formu kapat' : '+ Doktor ekle'}
+      </button>
+      {showForm && (
+        <form onSubmit={handleSubmit} className="mb-8 p-6 rounded-xl border border-slate-200 bg-slate-50 space-y-4">
+          <h3 className="text-lg font-700 text-slate-900">Yeni doktor hesabı</h3>
+          {error && <p className="text-sm text-rose-600">{error}</p>}
+          <input
+            type="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="E-posta"
+            className="w-full px-4 py-2 rounded-lg border border-slate-200"
+          />
+          <input
+            required
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Ad soyad"
+            className="w-full px-4 py-2 rounded-lg border border-slate-200"
+          />
+          <input
+            type="password"
+            required
+            minLength={6}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Şifre (en az 6 karakter)"
+            className="w-full px-4 py-2 rounded-lg border border-slate-200"
+          />
+          <select
+            value={branch}
+            onChange={(e) => setBranch(e.target.value)}
+            className="w-full px-4 py-2 rounded-lg border border-slate-200 bg-white"
+          >
+            <option value="">Branş (isteğe bağlı)</option>
+            {DOCTOR_BRANCH_OPTIONS.map((o) => (
+              <option key={o.id} value={o.id}>{o.label}</option>
+            ))}
+          </select>
+          <input
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Şehir (isteğe bağlı)"
+            className="w-full px-4 py-2 rounded-lg border border-slate-200"
+          />
+          <div className="flex gap-2">
+            <button type="submit" disabled={saving} className="px-4 py-2 rounded-xl bg-diapal-600 text-white font-600 disabled:opacity-60">
+              {saving ? 'Ekleniyor…' : 'Doktor ekle'}
+            </button>
+            <button type="button" onClick={resetForm} className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 font-500 hover:bg-slate-50">
+              İptal
+            </button>
+          </div>
+        </form>
+      )}
+      <ul className="space-y-2">
+        {doctors.length === 0 ? (
+          <p className="text-slate-500">Henüz eklenen doktor yok.</p>
+        ) : (
+          doctors.map((d) => (
+            <li key={d.id} className="flex items-center justify-between gap-4 py-3 border-b border-slate-100">
+              <div>
+                <span className="font-500 text-slate-900">{d.name}</span>
+                <span className="text-slate-500 text-sm ml-2">{d.email}</span>
+                {(d.branch || d.city) && (
+                  <span className="text-slate-400 text-xs ml-2"> · {[d.branch, d.city].filter(Boolean).join(', ')}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => handleDelete(d.id)}
+                className="px-2 py-1 rounded-lg bg-rose-50 text-rose-700 text-sm font-500 hover:bg-rose-100"
+              >
+                Hesabı kaldır
+              </button>
+            </li>
+          ))
+        )}
+      </ul>
     </div>
   )
 }
