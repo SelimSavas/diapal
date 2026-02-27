@@ -334,7 +334,7 @@ export default function Home() {
                 <div className="relative">
                   <img
                     src="/hero-patient-doctor.png"
-                    alt="Doktorun diyabet ölçüm cihazı ile hastanın şekerini ölçmesi"
+                    alt="Doktorun diyabet ölçüm cihazı ile danışanın şekerini ölçmesi"
                     className="h-56 w-full object-cover md:h-64"
                     loading="lazy"
                   />
@@ -528,7 +528,7 @@ export default function Home() {
               Toplulukta sen de varsın
             </h2>
             <p className="mt-4 text-slate-600">
-              Binlerce hasta ve aile Diapal'da bilgi alıyor, doktorlarla iletişim kuruyor ve forumda birbirine destek oluyor. Hesap oluştur, ücretsiz katıl.
+              Diyabetle yaşayan binlerce kişi ve aile Diapal'da bilgi alıyor, doktorlarla iletişim kuruyor ve forumda birbirine destek oluyor. Hesap oluştur, ücretsiz katıl.
             </p>
           </div>
 

@@ -6,10 +6,9 @@ import {
   getRepliesForTopic,
   addReply,
   formatRelativeDate,
-  getBestAnswerReplyId,
   setBestAnswer,
-  getReplyLikeCount,
-  isReplyLikedBy,
+  getReplyLikeCountsForTopic,
+  getRepliesLikedByUserForTopic,
   toggleReplyLike,
   isSubscribed,
   toggleSubscription,
@@ -19,43 +18,84 @@ import { addNotification } from '../lib/notifications'
 export default function ForumTopic() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuth()
-  const [topic, setTopic] = useState(() => (id ? getTopic(id) : null))
-  const [replies, setReplies] = useState(() => (id ? getRepliesForTopic(id) : []))
+  const [topic, setTopic] = useState<Awaited<ReturnType<typeof getTopic>>>(undefined)
+  const [replies, setReplies] = useState<Awaited<ReturnType<typeof getRepliesForTopic>>>([])
+  const [replyLikeCounts, setReplyLikeCounts] = useState<Record<string, number>>({})
+  const [repliesLikedByUser, setRepliesLikedByUser] = useState<Set<string>>(new Set())
+  const [subscribed, setSubscribed] = useState(false)
   const [replyBody, setReplyBody] = useState('')
+  const [loading, setLoading] = useState(!!id)
   const [submitting, setSubmitting] = useState(false)
   const [metaVersion, setMetaVersion] = useState(0)
 
   useEffect(() => {
-    if (id) {
-      setTopic(getTopic(id))
-      setReplies(getRepliesForTopic(id))
+    if (!id) return
+    let cancelled = false
+    setLoading(true)
+    const load = async () => {
+      const [t, r, likeCounts] = await Promise.all([
+        getTopic(id),
+        getRepliesForTopic(id),
+        getReplyLikeCountsForTopic(id),
+      ])
+      if (cancelled) return
+      setTopic(t)
+      setReplies(r)
+      setReplyLikeCounts(likeCounts)
+      if (user) {
+        const [liked, sub] = await Promise.all([
+          getRepliesLikedByUserForTopic(user.id, id),
+          isSubscribed(id, user.id),
+        ])
+        if (!cancelled) {
+          setRepliesLikedByUser(liked)
+          setSubscribed(sub)
+        }
+      } else {
+        setRepliesLikedByUser(new Set())
+        setSubscribed(false)
+      }
     }
-  }, [id, metaVersion])
+    load().finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [id, user?.id, metaVersion])
 
-  const handleSubmitReply = (e: React.FormEvent) => {
+  const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !id || !replyBody.trim() || !topic) return
     setSubmitting(true)
-    addReply({
-      topicId: id,
-      authorId: user.id,
-      authorName: user.name,
-      body: replyBody.trim(),
-    })
-    if (topic.authorId !== user.id) {
-      addNotification(
-        topic.authorId,
-        'forum_reply',
-        'Yeni forum yanıtı',
-        `${user.name} konunuza yanıt yazdı: "${replyBody.trim().slice(0, 50)}${replyBody.trim().length > 50 ? '…' : ''}"`,
-        `/forum/${id}`
-      )
+    try {
+      await addReply({
+        topicId: id,
+        authorId: user.id,
+        authorName: user.name,
+        body: replyBody.trim(),
+      })
+      if (topic.authorId !== user.id) {
+        addNotification(
+          topic.authorId,
+          'forum_reply',
+          'Yeni forum yanıtı',
+          `${user.name} konunuza yanıt yazdı: "${replyBody.trim().slice(0, 50)}${replyBody.trim().length > 50 ? '…' : ''}"`,
+          `/forum/${id}`
+        )
+      }
+      const next = await getRepliesForTopic(id)
+      setReplies(next)
+      setReplyBody('')
+      setMetaVersion((v) => v + 1)
+    } finally {
+      setSubmitting(false)
     }
-    setReplies(getRepliesForTopic(id))
-    setReplyBody('')
-    setSubmitting(false)
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center">
+        <p className="text-slate-600">Yükleniyor...</p>
+      </div>
+    )
+  }
   if (!topic) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">
@@ -82,10 +122,10 @@ export default function ForumTopic() {
             {user && (
               <button
                 type="button"
-                onClick={() => { if (id) toggleSubscription(id, user.id); setMetaVersion((v) => v + 1) }}
-                className={`text-sm font-500 px-3 py-1.5 rounded-lg ${isSubscribed(id!, user.id) ? 'bg-diapal-100 text-diapal-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                onClick={async () => { if (id) { await toggleSubscription(id, user.id); setSubscribed(await isSubscribed(id, user.id)); setMetaVersion((v) => v + 1) } }}
+                className={`text-sm font-500 px-3 py-1.5 rounded-lg ${subscribed ? 'bg-diapal-100 text-diapal-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
               >
-                {isSubscribed(id!, user.id) ? 'Takip ediliyor ✓' : 'Konuyu takip et'}
+                {subscribed ? 'Takip ediliyor ✓' : 'Konuyu takip et'}
               </button>
             )}
           </div>
@@ -110,10 +150,10 @@ export default function ForumTopic() {
           </h2>
           <ul className="space-y-4">
             {replies.map((reply) => {
-              const bestAnswerId = getBestAnswerReplyId(topic.id)
+              const bestAnswerId = topic.bestReplyId ?? null
               const isBest = bestAnswerId === reply.id
-              const likeCount = getReplyLikeCount(reply.id)
-              const liked = user ? isReplyLikedBy(reply.id, user.id) : false
+              const likeCount = replyLikeCounts[reply.id] ?? 0
+              const liked = user ? repliesLikedByUser.has(reply.id) : false
               const isTopicAuthor = user?.id === topic.authorId
               return (
                 <li
@@ -139,7 +179,7 @@ export default function ForumTopic() {
                       {isTopicAuthor && !isBest && (
                         <button
                           type="button"
-                          onClick={() => { setBestAnswer(topic.id, reply.id); setMetaVersion((v) => v + 1) }}
+                          onClick={async () => { await setBestAnswer(topic.id, reply.id); setMetaVersion((v) => v + 1) }}
                           className="text-xs font-500 text-diapal-600 hover:underline"
                         >
                           En iyi yanıt seç
@@ -148,7 +188,7 @@ export default function ForumTopic() {
                       {isTopicAuthor && isBest && (
                         <button
                           type="button"
-                          onClick={() => { setBestAnswer(topic.id, null); setMetaVersion((v) => v + 1) }}
+                          onClick={async () => { await setBestAnswer(topic.id, null); setMetaVersion((v) => v + 1) }}
                           className="text-xs font-500 text-slate-500 hover:underline"
                         >
                           Kaldır
@@ -157,7 +197,7 @@ export default function ForumTopic() {
                       {user && (
                         <button
                           type="button"
-                          onClick={() => { toggleReplyLike(reply.id, user.id); setMetaVersion((v) => v + 1) }}
+                          onClick={async () => { await toggleReplyLike(reply.id, user.id); setMetaVersion((v) => v + 1) }}
                           className={`flex items-center gap-1 px-2 py-1 rounded-lg text-sm ${liked ? 'text-rose-600 bg-rose-50' : 'text-slate-500 hover:bg-slate-100'}`}
                         >
                           <svg className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>

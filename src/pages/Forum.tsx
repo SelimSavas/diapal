@@ -1,11 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   getTopics,
-  getReplyCount,
-  getTopicLikeCount,
-  isTopicLikedBy,
+  getReplyCounts,
+  getTopicLikeCounts,
+  getTopicsLikedByUser,
   toggleTopicLike,
   sortTopics,
   searchTopics,
@@ -28,14 +28,50 @@ export default function Forum() {
   const [selectedCategory, setSelectedCategory] = useState('Tümü')
   const [sort, setSort] = useState<ForumSort>('newest')
   const [searchQuery, setSearchQuery] = useState('')
-  const [topics] = useState<ForumTopic[]>(() => getTopics())
-  const [, setLikeVersion] = useState(0)
+  const [topics, setTopics] = useState<ForumTopic[]>([])
+  const [replyCounts, setReplyCounts] = useState<Record<string, number>>({})
+  const [topicLikeCounts, setTopicLikeCounts] = useState<Record<string, number>>({})
+  const [topicsLikedByUser, setTopicsLikedByUser] = useState<Set<string>>(new Set())
+  const [loading, setLoading] = useState(true)
+
+  const loadData = useCallback(async () => {
+    const [t, counts, likeCounts] = await Promise.all([
+      getTopics(),
+      getReplyCounts(),
+      getTopicLikeCounts(),
+    ])
+    setTopics(t)
+    setReplyCounts(counts)
+    setTopicLikeCounts(likeCounts)
+    if (user) {
+      const liked = await getTopicsLikedByUser(user.id)
+      setTopicsLikedByUser(liked)
+    } else {
+      setTopicsLikedByUser(new Set())
+    }
+  }, [user?.id])
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    loadData().finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [loadData])
 
   const filteredTopics = useMemo(() => {
     let list = selectedCategory === 'Tümü' ? topics : topics.filter((t) => t.category === selectedCategory)
     list = searchTopics(list, searchQuery)
-    return sortTopics(list, sort)
-  }, [topics, selectedCategory, sort, searchQuery])
+    return sortTopics(list, sort, replyCounts, topicLikeCounts)
+  }, [topics, selectedCategory, sort, searchQuery, replyCounts, topicLikeCounts])
+
+  const handleToggleLike = async (topicId: string) => {
+    if (!user) return
+    await toggleTopicLike(topicId, user.id)
+    const liked = await getTopicsLikedByUser(user.id)
+    setTopicsLikedByUser(liked)
+    const counts = await getTopicLikeCounts()
+    setTopicLikeCounts(counts)
+  }
 
   const handleNewTopic = () => {
     if (user) navigate('/forum/yeni')
@@ -106,15 +142,17 @@ export default function Forum() {
 
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="divide-y divide-slate-100">
-          {filteredTopics.length === 0 ? (
+          {loading ? (
+            <div className="p-12 text-center text-slate-500">Yükleniyor...</div>
+          ) : filteredTopics.length === 0 ? (
             <div className="p-12 text-center text-slate-500">
               Bu kategoride henüz konu yok. İlk konuyu sen aç!
             </div>
           ) : (
             filteredTopics.map((topic) => {
-              const replyCount = getReplyCount(topic.id)
-              const likeCount = getTopicLikeCount(topic.id)
-              const liked = user ? isTopicLikedBy(topic.id, user.id) : false
+              const replyCount = replyCounts[topic.id] ?? 0
+              const likeCount = topicLikeCounts[topic.id] ?? 0
+              const liked = user ? topicsLikedByUser.has(topic.id) : false
               return (
                 <div key={topic.id} className="flex items-center gap-2 p-4 sm:p-5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
                   <div className="flex-1 min-w-0">
@@ -130,7 +168,7 @@ export default function Forum() {
                     {user ? (
                       <button
                         type="button"
-                        onClick={(e) => { e.preventDefault(); toggleTopicLike(topic.id, user.id); setLikeVersion((v) => v + 1) }}
+                        onClick={(e) => { e.preventDefault(); handleToggleLike(topic.id) }}
                         className={`flex items-center gap-1 px-2 py-1 rounded-lg transition-colors ${liked ? 'text-rose-600 bg-rose-50' : 'hover:bg-slate-100'}`}
                       >
                         <svg className="w-4 h-4" fill={liked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>

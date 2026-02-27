@@ -10,50 +10,123 @@ import {
   type Conversation,
   type Message,
 } from '../lib/messages'
+import { ensureDoctorPatient } from '../lib/doctorProfiles'
 
 export default function Mesajlar() {
-  const { user } = useAuth()
+  const { user, getUsersPublicWithRole } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
-  const state = location.state as { doctorId?: number; doctorName?: string } | null
+  const state = location.state as {
+    doctorId?: string | number
+    doctorName?: string
+    patientId?: string
+    patientName?: string
+  } | null
 
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [selectedConv, setSelectedConv] = useState<Conversation | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [initOpen, setInitOpen] = useState(false)
+  const [loadingConv, setLoadingConv] = useState(true)
+  const [loadingMsg, setLoadingMsg] = useState(false)
+  const [sending, setSending] = useState(false)
 
   useEffect(() => {
     if (!user) {
       navigate('/giris', { replace: true })
       return
     }
-    setConversations(getConversationsForUser(user.id))
+    let cancelled = false
+    setLoadingConv(true)
+    getConversationsForUser(user.id).then((list) => {
+      if (!cancelled) {
+        setConversations(list)
+        setLoadingConv(false)
+      }
+    })
+    return () => { cancelled = true }
   }, [user, navigate])
 
   useEffect(() => {
-    if (!user || !state?.doctorId || initOpen) return
-    const conv = getOrCreateConversation(user.id, user.name, String(state.doctorId), state.doctorName || 'Doktor')
-    setConversations(getConversationsForUser(user.id))
-    setSelectedConv(conv)
-    setMessages(getMessages(conv.id))
-    setInitOpen(true)
-    window.history.replaceState({}, '', '/mesajlar')
-  }, [user, state, initOpen])
+    const fromDoctor = state?.doctorId && user
+    const fromPatient = state?.patientId && user?.role === 'doktor'
+    if (!user || (!fromDoctor && !fromPatient) || initOpen) return
+    let cancelled = false
+    const [id1, name1, id2, name2] = fromDoctor
+      ? [user.id, user.name, String(state.doctorId), state.doctorName || 'Doktor']
+      : [user.id, user.name, state!.patientId!, state!.patientName || 'Üye']
+    getOrCreateConversation(id1, name1, id2, name2).then((conv) => {
+      if (cancelled) return
+      if (fromDoctor) ensureDoctorPatient(String(state!.doctorId), user.id, user.name).catch(() => {})
+      setSelectedConv(conv)
+      setConversations((prev) => {
+        const has = prev.some((c) => c.id === conv.id)
+        if (has) return prev
+        return [conv, ...prev]
+      })
+      setInitOpen(true)
+      window.history.replaceState({}, '', '/mesajlar')
+      return getMessages(conv.id)
+    }).then((msgs) => {
+      if (msgs && !cancelled) setMessages(msgs)
+    }).catch(() => {})
+    getConversationsForUser(user.id).then((list) => { if (!cancelled) setConversations(list) })
+    return () => { cancelled = true }
+  }, [user, state?.doctorId, state?.doctorName, state?.patientId, state?.patientName, initOpen])
 
   useEffect(() => {
-    if (selectedConv) setMessages(getMessages(selectedConv.id))
-  }, [selectedConv])
+    if (!selectedConv) {
+      setMessages([])
+      return
+    }
+    let cancelled = false
+    setLoadingMsg(true)
+    getMessages(selectedConv.id).then((msgs) => {
+      if (!cancelled) {
+        setMessages(msgs)
+        setLoadingMsg(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [selectedConv?.id])
 
-  const handleSend = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (!user || user.role !== 'doktor' || !selectedConv) return
+    const other = getOtherParticipant(selectedConv, user.id)
+    if (!other) return
+    const byRole = getUsersPublicWithRole().find((u) => u.id === other.userId)
+    if (byRole?.role === 'hasta') {
+      ensureDoctorPatient(user.id, other.userId, other.userName).catch(() => {})
+    }
+  }, [user, selectedConv, getUsersPublicWithRole])
+
+  const handleSelectConv = (c: Conversation) => {
+    setSelectedConv(c)
+  }
+
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !selectedConv || !input.trim()) return
     const other = getOtherParticipant(selectedConv, user.id)
     if (!other) return
-    sendMessage(selectedConv.id, user.id, other.userId, input)
-    setMessages(getMessages(selectedConv.id))
+    const text = input
     setInput('')
-    setConversations(getConversationsForUser(user.id))
+    setSending(true)
+    try {
+      const msg = await sendMessage(selectedConv.id, user.id, other.userId, text)
+      setMessages((prev) => [...prev, msg])
+      setConversations((prev) =>
+        prev.map((c) => (c.id === selectedConv.id ? { ...c, updatedAt: msg.createdAt } : c)).sort(
+          (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+        )
+      )
+    } catch (err) {
+      setInput(text)
+      console.error(err)
+    } finally {
+      setSending(false)
+    }
   }
 
   if (!user) {
@@ -74,7 +147,9 @@ export default function Mesajlar() {
             <p className="text-sm font-600 text-slate-700">Sohbetler</p>
           </div>
           <ul className="flex-1 overflow-y-auto">
-            {conversations.length === 0 ? (
+            {loadingConv ? (
+              <li className="p-4 text-slate-500 text-sm">Yükleniyor...</li>
+            ) : conversations.length === 0 ? (
               <li className="p-4 text-slate-500 text-sm">Henüz mesajlaşma yok. Bir doktordan veya kullanıcıdan mesaj başlatın.</li>
             ) : (
               conversations.map((c) => {
@@ -85,7 +160,7 @@ export default function Mesajlar() {
                   <li key={c.id}>
                     <button
                       type="button"
-                      onClick={() => { setSelectedConv(c); setMessages(getMessages(c.id)) }}
+                      onClick={() => handleSelectConv(c)}
                       className={`w-full text-left px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors ${isSelected ? 'bg-diapal-50 border-l-4 border-l-diapal-500' : ''}`}
                     >
                       <p className="font-600 text-slate-900 truncate">{other.userName}</p>
@@ -111,26 +186,30 @@ export default function Mesajlar() {
                 </p>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {messages.map((m) => {
-                  const isMe = m.fromUserId === user.id
-                  return (
-                    <div
-                      key={m.id}
-                      className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
-                    >
+                {loadingMsg ? (
+                  <p className="text-slate-500 text-sm">Yükleniyor...</p>
+                ) : (
+                  messages.map((m) => {
+                    const isMe = m.fromUserId === user.id
+                    return (
                       <div
-                        className={`max-w-[80%] rounded-2xl px-4 py-2 ${
-                          isMe ? 'bg-diapal-600 text-white' : 'bg-slate-100 text-slate-900'
-                        }`}
+                        key={m.id}
+                        className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
                       >
-                        <p className="text-sm whitespace-pre-wrap">{m.body}</p>
-                        <p className={`text-xs mt-1 ${isMe ? 'text-diapal-200' : 'text-slate-500'}`}>
-                          {new Date(m.createdAt).toLocaleString('tr-TR')}
-                        </p>
+                        <div
+                          className={`max-w-[80%] rounded-2xl px-4 py-2 ${
+                            isMe ? 'bg-diapal-600 text-white' : 'bg-slate-100 text-slate-900'
+                          }`}
+                        >
+                          <p className="text-sm whitespace-pre-wrap">{m.body}</p>
+                          <p className={`text-xs mt-1 ${isMe ? 'text-diapal-200' : 'text-slate-500'}`}>
+                            {new Date(m.createdAt).toLocaleString('tr-TR')}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
               <form onSubmit={handleSend} className="p-3 border-t border-slate-200 flex gap-2">
                 <input
@@ -142,10 +221,10 @@ export default function Mesajlar() {
                 />
                 <button
                   type="submit"
-                  disabled={!input.trim()}
+                  disabled={!input.trim() || sending}
                   className="px-4 py-2.5 rounded-xl bg-diapal-600 text-white font-600 hover:bg-diapal-700 disabled:opacity-50"
                 >
-                  Gönder
+                  {sending ? 'Gönderiliyor…' : 'Gönder'}
                 </button>
               </form>
             </>

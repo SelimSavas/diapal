@@ -84,13 +84,20 @@ export function getRecipesByTag(tag: string): Recipe[] {
   return RECIPES.filter((r) => r.tags.some((tag) => tag.toLowerCase().includes(t) || t.includes(tag.toLowerCase())))
 }
 
-export function searchRecipes(query: string): Recipe[] {
+export function searchRecipes(query: string, pool: Recipe[] = RECIPES): Recipe[] {
   const q = query.toLowerCase().trim()
   if (!q) return []
-  return RECIPES.filter(
+  return pool.filter(
     (r) =>
       r.name.toLowerCase().includes(q) ||
       r.shortDesc.toLowerCase().includes(q) ||
       r.tags.some((t) => t.toLowerCase().includes(q))
   )
+}
+
+/** Statik + Supabase admin tarifler (public sayfalar için). */
+export async function getRecipesAsync(): Promise<Recipe[]> {
+  const { getAdminRecipes } = await import('./adminContent')
+  const admin = await getAdminRecipes()
+  return [...RECIPES, ...admin]
 }

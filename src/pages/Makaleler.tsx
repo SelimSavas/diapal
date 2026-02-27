@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
-  getAllArticles,
-  getArticlesByCategory,
+  getAllArticlesAsync,
   ARTICLE_CATEGORIES,
+  type Article,
   type ArticleCategory,
 } from '../lib/articles'
 import { isFavorite, toggleFavorite } from '../lib/favorites'
@@ -12,8 +12,19 @@ import { isFavorite, toggleFavorite } from '../lib/favorites'
 export default function Makaleler() {
   const { user } = useAuth()
   const [category, setCategory] = useState<ArticleCategory | 'all'>('all')
+  const [allArticles, setAllArticles] = useState<Article[]>([])
+  const [loading, setLoading] = useState(true)
   const [, setFavVersion] = useState(0)
-  const articles = category === 'all' ? getAllArticles() : getArticlesByCategory(category)
+  useEffect(() => {
+    getAllArticlesAsync().then((list) => {
+      setAllArticles(list)
+      setLoading(false)
+    })
+  }, [])
+  const articles = useMemo(
+    () => (category === 'all' ? allArticles : allArticles.filter((a) => a.category === category)),
+    [allArticles, category]
+  )
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-16">
@@ -50,6 +61,9 @@ export default function Makaleler() {
         ))}
       </div>
 
+      {loading ? (
+        <p className="text-center text-slate-500 py-12">Yükleniyor...</p>
+      ) : (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {articles.map((a) => {
           const isFav = user ? isFavorite(user.id, 'article', a.id) : false
@@ -85,7 +99,8 @@ export default function Makaleler() {
         })}
       </div>
 
-      {articles.length === 0 && (
+      )}
+      {!loading && articles.length === 0 && (
         <p className="text-center text-slate-500 py-12">Bu kategoride henüz makale yok.</p>
       )}
     </div>

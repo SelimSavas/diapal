@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
@@ -7,7 +7,7 @@ import {
   toggleChallenge,
   getCurrentStreak,
   getTotalPoints,
-  getProgressForDisplay,
+  ensureProgressLoaded,
   type UserChallengeProgress,
 } from '../lib/challenges'
 
@@ -15,9 +15,15 @@ const TODAY = new Date().toISOString().slice(0, 10)
 
 export default function MeydanOkumalar() {
   const { user } = useAuth()
-  const [progress, setProgress] = useState<UserChallengeProgress | null>(() =>
-    user ? getProgressForDisplay(user.id) : null
-  )
+  const [progress, setProgress] = useState<UserChallengeProgress | null>(null)
+
+  useEffect(() => {
+    if (!user) {
+      setProgress(null)
+      return
+    }
+    ensureProgressLoaded(user.id).then((p) => setProgress(p))
+  }, [user])
 
   const streak = useMemo(() => (progress ? getCurrentStreak(progress.history) : 0), [progress])
   const totalPoints = useMemo(() => (progress ? getTotalPoints(progress) : 0), [progress])

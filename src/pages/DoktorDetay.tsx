@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getDoctorById } from '../lib/doctors'
+import { getDoctorProfile } from '../lib/doctorProfiles'
 import { isFavorite, toggleFavorite } from '../lib/favorites'
 
 export default function DoktorDetay() {
@@ -9,6 +10,21 @@ export default function DoktorDetay() {
   const navigate = useNavigate()
   const { user } = useAuth()
   const doctor = id ? getDoctorById(id) : undefined
+  const [profileBio, setProfileBio] = useState<string | null>(null)
+  const [profilePhone, setProfilePhone] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!id) return
+    getDoctorProfile(id).then((p) => {
+      if (p) {
+        setProfileBio(p.bio)
+        setProfilePhone(p.phone)
+      } else {
+        setProfileBio(null)
+        setProfilePhone(null)
+      }
+    })
+  }, [id])
 
   const [randevuSent, setRandevuSent] = useState(false)
   const [mesajSent, setMesajSent] = useState(false)
@@ -90,8 +106,8 @@ export default function DoktorDetay() {
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Online</span>
                 )}
               </div>
-              {doctor.bio && <p className="mt-4 text-slate-600">{doctor.bio}</p>}
-              {doctor.phone && <p className="mt-2 text-sm text-slate-500">İletişim: {doctor.phone}</p>}
+              {(doctor.bio || profileBio) && <p className="mt-4 text-slate-600">{doctor.bio || profileBio}</p>}
+              {(doctor.phone || profilePhone) && <p className="mt-2 text-sm text-slate-500">İletişim: {doctor.phone || profilePhone}</p>}
             </div>
           </div>
         </div>

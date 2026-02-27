@@ -28,19 +28,26 @@ function loadStoredUser(): User | null {
   }
 }
 
+const ADMIN_SEED: StoredUser = {
+  id: 'admin_1',
+  email: 'admin@diapal.com',
+  name: 'Admin',
+  password: 'D1apal#Admin!2025',
+  role: 'admin',
+}
+
 function loadUsers(): StoredUser[] {
   try {
     const raw = localStorage.getItem(USERS_KEY)
-    if (!raw) {
-      const seed: StoredUser[] = [
-        { id: 'admin_1', email: 'admin@diapal.com', name: 'Admin', password: 'admin123', role: 'admin' },
-      ]
-      saveUsers(seed)
-      return seed
+    let users: StoredUser[] = raw ? JSON.parse(raw) : []
+    if (!users.some((u) => u.email.toLowerCase() === 'admin@diapal.com')) {
+      users = [ADMIN_SEED, ...users]
+      saveUsers(users)
     }
-    return JSON.parse(raw)
+    return users
   } catch {
-    return []
+    saveUsers([ADMIN_SEED])
+    return [ADMIN_SEED]
   }
 }
 
@@ -71,6 +78,7 @@ type AuthContextValue = {
   logout: () => void
   deleteAccount: (userId: string) => { ok: boolean; error?: string }
   getUsersPublic: () => { id: string; name: string }[]
+  getUsersPublicWithRole: () => { id: string; name: string; role: UserRole }[]
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -152,13 +160,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return loadUsers().map((u) => ({ id: u.id, name: u.name }))
   }, [])
 
+  const getUsersPublicWithRole = useCallback(() => {
+    return loadUsers().map((u) => ({ id: u.id, name: u.name, role: u.role }))
+  }, [])
+
   useEffect(() => {
     const stored = loadStoredUser()
     if (stored && !user) setUser(stored)
   }, [user])
 
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, deleteAccount, getUsersPublic }}>
+    <AuthContext.Provider value={{ user, login, register, logout, deleteAccount, getUsersPublic, getUsersPublicWithRole }}>
       {children}
     </AuthContext.Provider>
   )

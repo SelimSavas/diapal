@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import {
   DAILY_CHALLENGES,
   toggleChallenge,
-  getProgressForDisplay,
+  ensureProgressLoaded,
   type UserChallengeProgress,
 } from '../lib/challenges'
 
@@ -14,7 +14,11 @@ export default function GunlukGorevlerWidget() {
   const [progress, setProgress] = useState<UserChallengeProgress | null>(null)
 
   useEffect(() => {
-    if (user) setProgress(getProgressForDisplay(user.id))
+    if (user) {
+      ensureProgressLoaded(user.id).then((p) => setProgress(p))
+    } else {
+      setProgress(null)
+    }
   }, [user])
 
   const handleToggle = (challengeId: string) => {

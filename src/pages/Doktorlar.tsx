@@ -13,7 +13,7 @@ export default function Doktorlar() {
     const list = getDoctors()
     if (selectedFilter === 'Tümü') return list
     if (selectedFilter === 'Online') return list.filter((d) => d.online)
-    return list.filter((d) => d.branch === selectedFilter)
+    return list.filter((d) => d.branch.includes(selectedFilter))
   }, [selectedFilter, favVersion])
 
   return (

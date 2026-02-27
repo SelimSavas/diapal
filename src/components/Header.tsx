@@ -78,6 +78,7 @@ export default function Header() {
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<Awaited<ReturnType<typeof searchSite>>>([])
   const [notifOpen, setNotifOpen] = useState(false)
   const [, setNotifVersion] = useState(0)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -87,7 +88,18 @@ export default function Header() {
 
   const notifications = user ? getNotifications(user.id) : []
   const unreadCount = user ? getUnreadCount(user.id) : 0
-  const searchResults = searchQuery.trim().length >= 2 ? searchSite(searchQuery) : []
+
+  useEffect(() => {
+    if (searchQuery.trim().length < 2) {
+      setSearchResults([])
+      return
+    }
+    let cancelled = false
+    searchSite(searchQuery).then((r) => {
+      if (!cancelled) setSearchResults(r)
+    })
+    return () => { cancelled = true }
+  }, [searchQuery])
 
   useEffect(() => {
     if (!menuOpen) setOpenDropdown(null)

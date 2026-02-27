@@ -1,15 +1,27 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { getArticleBySlug } from '../lib/articles'
+import { getArticleBySlugAsync } from '../lib/articles'
 import { ARTICLE_CATEGORIES } from '../lib/articles'
+import type { Article } from '../lib/articles'
 import { isFavorite, toggleFavorite } from '../lib/favorites'
 
 export default function MakaleDetay() {
   const { slug } = useParams<{ slug: string }>()
   const { user } = useAuth()
-  const article = slug ? getArticleBySlug(slug) : null
-  const [isFav, setIsFav] = useState(() => (user && article ? isFavorite(user.id, 'article', article.id) : false))
+  const [article, setArticle] = useState<Article | null>(null)
+  const [loading, setLoading] = useState(!!slug)
+  const [isFav, setIsFav] = useState(false)
+  useEffect(() => {
+    if (!slug) return
+    getArticleBySlugAsync(slug).then((a) => {
+      setArticle(a ?? null)
+      setLoading(false)
+    })
+  }, [slug])
+  useEffect(() => {
+    if (user && article) setIsFav(isFavorite(user.id, 'article', article.id))
+  }, [user, article])
 
   const handleToggleFav = () => {
     if (!user || !article) return
@@ -17,6 +29,13 @@ export default function MakaleDetay() {
     setIsFav(next)
   }
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center text-slate-500">
+        Yükleniyor...
+      </div>
+    )
+  }
   if (!article) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">

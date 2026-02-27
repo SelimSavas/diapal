@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient'
+
 export type DailyChallenge = {
   id: string
   title: string
@@ -146,27 +148,59 @@ export type UserChallengeProgress = {
   earnedBadges: string[]
 }
 
-const STORAGE_PREFIX = 'diapal_challenges_'
+const TODAY = new Date().toISOString().slice(0, 10)
 
-function getStorageKey(userId: string): string {
-  return `${STORAGE_PREFIX}${userId}`
+// Basit bellek içi cache: her kullanıcı için son progress
+const progressCache = new Map<string, UserChallengeProgress>()
+
+async function loadProgressFromDb(userId: string): Promise<UserChallengeProgress> {
+  if (progressCache.has(userId)) {
+    return ensureToday(progressCache.get(userId)!)
+  }
+  const { data, error } = await supabase
+    .from('user_challenges_progress')
+    .select('progress')
+    .eq('user_id', userId)
+    .maybeSingle()
+
+  let progress: UserChallengeProgress
+
+  if (error || !data || !data.progress) {
+    progress = { completedToday: [], history: [], earnedBadges: [] }
+  } else {
+    progress = data.progress as UserChallengeProgress
+  }
+
+  const ensured = ensureToday(progress)
+  const newBadges = computeNewBadges(ensured)
+  if (newBadges.length > 0) {
+    ensured.earnedBadges = [...new Set([...ensured.earnedBadges, ...newBadges])]
+    await saveProgressToDb(userId, ensured)
+  } else {
+    progressCache.set(userId, ensured)
+  }
+  return ensured
 }
 
-export function loadProgress(userId: string): UserChallengeProgress {
-  let data: UserChallengeProgress
-  try {
-    const raw = localStorage.getItem(getStorageKey(userId))
-    if (raw) data = JSON.parse(raw)
-    else data = { completedToday: [], history: [], earnedBadges: [] }
-  } catch {
-    data = { completedToday: [], history: [], earnedBadges: [] }
+async function saveProgressToDb(userId: string, data: UserChallengeProgress): Promise<void> {
+  progressCache.set(userId, data)
+  await supabase.from('user_challenges_progress').upsert({
+    user_id: userId,
+    progress: data,
+    updated_at: new Date().toISOString(),
+  })
+}
+
+export async function ensureProgressLoaded(userId: string): Promise<UserChallengeProgress> {
+  return loadProgressFromDb(userId)
+}
+
+export function getProgressForDisplay(userId: string): UserChallengeProgress {
+  const cached = progressCache.get(userId)
+  if (!cached) {
+    return { completedToday: [], history: [], earnedBadges: [] }
   }
-  const newBadges = computeNewBadges(data)
-  if (newBadges.length > 0) {
-    data = { ...data, earnedBadges: [...new Set([...data.earnedBadges, ...newBadges])] }
-    saveProgress(userId, data)
-  }
-  return data
+  return ensureToday(cached)
 }
 
 export function getTotalPoints(progress: UserChallengeProgress): number {
@@ -177,12 +211,6 @@ export function getTotalPoints(progress: UserChallengeProgress): number {
     0
   )
 }
-
-function saveProgress(userId: string, data: UserChallengeProgress): void {
-  localStorage.setItem(getStorageKey(userId), JSON.stringify(data))
-}
-
-const TODAY = new Date().toISOString().slice(0, 10)
 
 function ensureToday(progress: UserChallengeProgress): UserChallengeProgress {
   const lastHistory = progress.history[progress.history.length - 1]
@@ -197,7 +225,9 @@ function ensureToday(progress: UserChallengeProgress): UserChallengeProgress {
 }
 
 export function toggleChallenge(userId: string, challengeId: string): UserChallengeProgress {
-  const progress = ensureToday(loadProgress(userId))
+  const base: UserChallengeProgress =
+    progressCache.get(userId) ?? { completedToday: [], history: [], earnedBadges: [] }
+  const progress = ensureToday(base)
   const completedToday = progress.completedToday.includes(challengeId)
     ? progress.completedToday.filter((id) => id !== challengeId)
     : [...progress.completedToday, challengeId]
@@ -218,8 +248,9 @@ export function toggleChallenge(userId: string, challengeId: string): UserChalle
   if (newBadges.length > 0) {
     updated.earnedBadges = [...new Set([...updated.earnedBadges, ...newBadges])]
   }
-
-  saveProgress(userId, updated)
+  progressCache.set(userId, updated)
+  // Veritabanına asenkron kaydet
+  void saveProgressToDb(userId, updated)
   return updated
 }
 
@@ -362,8 +393,4 @@ export function getCurrentStreak(history: { date: string; challengeIds: string[]
     expect = next.toISOString().slice(0, 10)
   }
   return streak
-}
-
-export function getProgressForDisplay(userId: string): UserChallengeProgress {
-  return ensureToday(loadProgress(userId))
 }

@@ -1,10 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getNews } from '../lib/news'
+import { getNewsAsync } from '../lib/news'
+import type { NewsItem } from '../lib/news'
 
 export default function HaberlerDuyurular() {
   const [filter, setFilter] = useState<'all' | 'haber' | 'duyuru'>('all')
-  const news = getNews().filter((n) => filter === 'all' || n.type === filter)
+  const [allNews, setAllNews] = useState<NewsItem[]>([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    getNewsAsync().then((list) => {
+      setAllNews(list)
+      setLoading(false)
+    })
+  }, [])
+  const news = useMemo(
+    () => allNews.filter((n) => filter === 'all' || n.type === filter),
+    [allNews, filter]
+  )
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 md:py-16">
@@ -47,6 +59,9 @@ export default function HaberlerDuyurular() {
         </button>
       </div>
 
+      {loading ? (
+        <p className="text-center text-slate-500 py-12">Yükleniyor...</p>
+      ) : (
       <ul className="space-y-6">
         {news.map((item) => (
           <li key={item.id}>
@@ -67,7 +82,8 @@ export default function HaberlerDuyurular() {
         ))}
       </ul>
 
-      {news.length === 0 && (
+      )}
+      {!loading && news.length === 0 && (
         <p className="text-center text-slate-500 py-12">Bu kategoride kayıt yok.</p>
       )}
     </div>

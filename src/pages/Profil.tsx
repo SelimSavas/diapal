@@ -2,16 +2,160 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getProgressForDisplay, BADGES } from '../lib/challenges'
+import { supabase } from '../lib/supabaseClient'
+import {
+  getDoctorProfile,
+  upsertDoctorProfile,
+  getPatientsForDoctor,
+  type DoctorPatientRow,
+} from '../lib/doctorProfiles'
 
 export default function Profil() {
   const navigate = useNavigate()
   const { user, deleteAccount, logout } = useAuth()
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteConsent, setDeleteConsent] = useState(false)
+  const [goalsLoading, setGoalsLoading] = useState(false)
+  const [goalsSaving, setGoalsSaving] = useState(false)
+  const [hba1cTarget, setHba1cTarget] = useState('')
+  const [stepsTarget, setStepsTarget] = useState('')
+  const [carbsLimit, setCarbsLimit] = useState('')
+  const [waterTargetMl, setWaterTargetMl] = useState('')
+  const [moodSaving, setMoodSaving] = useState(false)
+  const [mood, setMood] = useState(3)
+  const [stress, setStress] = useState(3)
+  const [sleepQuality, setSleepQuality] = useState(3)
+  const [moodNote, setMoodNote] = useState('')
+  const [lastMoodText, setLastMoodText] = useState<string | null>(null)
+  const [doctorBio, setDoctorBio] = useState('')
+  const [doctorPhone, setDoctorPhone] = useState('')
+  const [doctorOnline, setDoctorOnline] = useState(true)
+  const [doctorProfileSaving, setDoctorProfileSaving] = useState(false)
+  const [patients, setPatients] = useState<DoctorPatientRow[]>([])
+  const [patientsLoading, setPatientsLoading] = useState(false)
 
   useEffect(() => {
     if (!user) navigate('/giris', { replace: true })
   }, [user, navigate])
+
+  useEffect(() => {
+    if (!user || user.role !== 'hasta') return
+    const load = async () => {
+      try {
+        setGoalsLoading(true)
+        const { data: goals } = await supabase
+          .from('patient_goals')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle()
+        if (goals) {
+          setHba1cTarget(goals.hba1c_target != null ? String(goals.hba1c_target) : '')
+          setStepsTarget(goals.steps_target != null ? String(goals.steps_target) : '')
+          setCarbsLimit(goals.carbs_limit != null ? String(goals.carbs_limit) : '')
+          setWaterTargetMl(goals.water_target_ml != null ? String(goals.water_target_ml) : '')
+        }
+        const { data: moods } = await supabase
+          .from('moods')
+          .select('mood, recorded_at')
+          .eq('user_id', user.id)
+          .order('recorded_at', { ascending: false })
+          .limit(1)
+        if (moods && moods.length > 0) {
+          const m = moods[0]
+          const when = new Date(m.recorded_at as string)
+          const label = when.toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit' })
+          const moodLabel = m.mood <= 2 ? 'düşük' : m.mood === 3 ? 'orta' : 'iyi'
+          setLastMoodText(`${label} tarihinde kendini ${moodLabel} hissettiğini belirtmişsin.`)
+        } else {
+          setLastMoodText(null)
+        }
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err)
+      } finally {
+        setGoalsLoading(false)
+      }
+    }
+    load()
+  }, [user])
+
+  useEffect(() => {
+    if (!user || user.role !== 'doktor') return
+    let cancelled = false
+    getDoctorProfile(user.id).then((p) => {
+      if (cancelled) return
+      if (p) {
+        setDoctorBio(p.bio ?? '')
+        setDoctorPhone(p.phone ?? '')
+        setDoctorOnline(p.online)
+      }
+    })
+    setPatientsLoading(true)
+    getPatientsForDoctor(user.id).then((list) => {
+      if (!cancelled) {
+        setPatients(list)
+        setPatientsLoading(false)
+      }
+    })
+    return () => { cancelled = true }
+  }, [user])
+
+  const handleSaveGoals = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || user.role !== 'hasta') return
+    try {
+      setGoalsSaving(true)
+      await supabase.from('patient_goals').upsert({
+        user_id: user.id,
+        hba1c_target: hba1cTarget ? Number(hba1cTarget) : null,
+        steps_target: stepsTarget ? Number(stepsTarget) : null,
+        carbs_limit: carbsLimit ? Number(carbsLimit) : null,
+        water_target_ml: waterTargetMl ? Number(waterTargetMl) : null,
+      })
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+    } finally {
+      setGoalsSaving(false)
+    }
+  }
+
+  const handleSaveDoctorProfile = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || user.role !== 'doktor') return
+    setDoctorProfileSaving(true)
+    try {
+      await upsertDoctorProfile(user.id, {
+        bio: doctorBio.trim() || null,
+        phone: doctorPhone.trim() || null,
+        online: doctorOnline,
+      })
+    } finally {
+      setDoctorProfileSaving(false)
+    }
+  }
+
+  const handleSaveMood = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!user || user.role !== 'hasta') return
+    try {
+      setMoodSaving(true)
+      await supabase.from('moods').insert({
+        user_id: user.id,
+        mood,
+        stress,
+        sleep_quality: sleepQuality,
+        note: moodNote.trim() || null,
+      })
+      setMoodNote('')
+      setLastMoodText('Bugünkü ruh halini kaydettin. Küçük adımlarla devam etmen çok değerli.')
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+    } finally {
+      setMoodSaving(false)
+    }
+  }
 
   if (!user) {
     return (
@@ -68,7 +212,7 @@ export default function Profil() {
                 {initial}
               </div>
               <div>
-                <h2 className="text-xl font-700 text-slate-900">Hasta profili</h2>
+                <h2 className="text-xl font-700 text-slate-900">Üye profili</h2>
                 <p className="text-slate-600">Bilgilerini güncelle, doktorlarla iletişim kur, forumda paylaş.</p>
               </div>
             </div>
@@ -83,7 +227,7 @@ export default function Profil() {
               </div>
               <div>
                 <label className="block text-sm font-500 text-slate-600">Hesap türü</label>
-                <p className="text-slate-900 font-500">Hasta</p>
+                <p className="text-slate-900 font-500">Üye</p>
               </div>
             </div>
             <div className="mt-6 flex flex-wrap gap-3">
@@ -101,6 +245,149 @@ export default function Profil() {
                 Çıkış yap
               </button>
             </div>
+          </section>
+          <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-700 text-slate-900 mb-2">Hedeflerim</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Hekiminle birlikte belirlediğin hedefleri buraya yaz. Bu değerler sadece senin hesabınla ilişkilidir.
+            </p>
+            <form onSubmit={handleSaveGoals} className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">
+                  HbA1c hedefi (%)</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min={5}
+                  max={12}
+                  value={hba1cTarget}
+                  onChange={(e) => setHba1cTarget(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Örn. 7.0"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">
+                  Günlük adım hedefi</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={stepsTarget}
+                  onChange={(e) => setStepsTarget(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Örn. 8000"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">
+                  Günlük KH limiti (g)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={carbsLimit}
+                  onChange={(e) => setCarbsLimit(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Örn. 180"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">
+                  Günlük su hedefi (ml)</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={waterTargetMl}
+                  onChange={(e) => setWaterTargetMl(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Örn. 2000"
+                />
+              </div>
+              <div className="sm:col-span-2 flex items-center justify-between mt-2">
+                <span className="text-xs text-slate-500">
+                  {goalsLoading ? 'Hedefler yükleniyor...' : 'Hedefleri istediğin zaman güncelleyebilirsin.'}
+                </span>
+                <button
+                  type="submit"
+                  disabled={goalsSaving}
+                  className="px-4 py-2.5 rounded-xl bg-diapal-600 text-white text-sm font-600 hover:bg-diapal-700 disabled:opacity-60 disabled:pointer-events-none"
+                >
+                  {goalsSaving ? 'Kaydediliyor…' : 'Hedefleri kaydet'}
+                </button>
+              </div>
+            </form>
+          </section>
+          <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-700 text-slate-900 mb-2">Bugünkü ruh halin</h3>
+            <p className="text-sm text-slate-600 mb-4">
+              Kendini bugün nasıl hissettiğini kısaca işaretle. Bu alan sadece senin için; doktorunla paylaşmak istersen birlikte bakabilirsiniz.
+            </p>
+            {lastMoodText && (
+              <p className="text-xs text-slate-500 mb-3">
+                {lastMoodText}
+              </p>
+            )}
+            <form onSubmit={handleSaveMood} className="space-y-4">
+              <div>
+                <label className="flex justify-between text-xs font-500 text-slate-600 mb-1">
+                  <span>Genel ruh hali</span>
+                  <span className="text-slate-500 text-[11px]">1: çok zor · 5: çok iyi</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  value={mood}
+                  onChange={(e) => setMood(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="flex justify-between text-xs font-500 text-slate-600 mb-1">
+                  <span>Stres düzeyi</span>
+                  <span className="text-slate-500 text-[11px]">1: çok düşük · 5: çok yüksek</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  value={stress}
+                  onChange={(e) => setStress(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="flex justify-between text-xs font-500 text-slate-600 mb-1">
+                  <span>Uyku kalitesi</span>
+                  <span className="text-slate-500 text-[11px]">1: çok kötü · 5: çok iyi</span>
+                </label>
+                <input
+                  type="range"
+                  min={1}
+                  max={5}
+                  value={sleepQuality}
+                  onChange={(e) => setSleepQuality(Number(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">
+                  Not (isteğe bağlı)</label>
+                <textarea
+                  value={moodNote}
+                  onChange={(e) => setMoodNote(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm"
+                  placeholder="Bugün seni zorlayan veya iyi hissettiren bir şey var mı?"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={moodSaving}
+                className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-600 hover:bg-emerald-700 disabled:opacity-60 disabled:pointer-events-none"
+              >
+                {moodSaving ? 'Kaydediliyor…' : 'Bugünü kaydet'}
+              </button>
+            </form>
           </section>
           <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <h3 className="text-lg font-700 text-slate-900 mb-4">Hızlı erişim</h3>
@@ -185,7 +472,7 @@ export default function Profil() {
               </div>
               <div>
                 <h2 className="text-xl font-700 text-slate-900">Doktor profili</h2>
-                <p className="text-slate-600">Profilini yönet, hasta mesajlarına ve randevu taleplerine yanıt ver.</p>
+                <p className="text-slate-600">Profilini yönet, danışan mesajlarına ve randevu taleplerine yanıt ver.</p>
               </div>
             </div>
             <div className="mt-6 grid sm:grid-cols-2 gap-4">
@@ -223,8 +510,70 @@ export default function Profil() {
             </div>
           </section>
           <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
-            <h3 className="text-lg font-700 text-slate-900 mb-4">Hasta mesajları & randevular</h3>
-            <p className="text-slate-600 text-sm">Bu bölüm gerçek uygulamada gelen mesaj ve randevu taleplerini listeler.</p>
+            <h3 className="text-lg font-700 text-slate-900 mb-2">Profil özeti (Supabase)</h3>
+            <p className="text-slate-600 text-sm mb-4">Biyografi ve iletişim bilgilerinizi güncelleyin; danışan listesinde görünsün.</p>
+            <form onSubmit={handleSaveDoctorProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">Biyografi / kısa tanıtım</label>
+                <textarea
+                  value={doctorBio}
+                  onChange={(e) => setDoctorBio(e.target.value)}
+                  rows={3}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Uzmanlık alanınız, deneyim, çalışma şekliniz..."
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">İletişim (telefon / e-posta)</label>
+                <input
+                  type="text"
+                  value={doctorPhone}
+                  onChange={(e) => setDoctorPhone(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="Örn. +90 212 XXX XX XX"
+                />
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={doctorOnline}
+                  onChange={(e) => setDoctorOnline(e.target.checked)}
+                  className="rounded border-slate-300"
+                />
+                <span className="text-sm text-slate-700">Online danışmanlık veriyorum</span>
+              </label>
+              <button
+                type="submit"
+                disabled={doctorProfileSaving}
+                className="px-4 py-2.5 rounded-xl bg-diapal-600 text-white text-sm font-600 hover:bg-diapal-700 disabled:opacity-60"
+              >
+                {doctorProfileSaving ? 'Kaydediliyor…' : 'Kaydet'}
+              </button>
+            </form>
+          </section>
+          <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
+            <h3 className="text-lg font-700 text-slate-900 mb-4">Takip ettiğim danışanlar</h3>
+            <p className="text-slate-600 text-sm mb-4">Mesajlaşmaya başladığınız danışanlar burada listelenir.</p>
+            {patientsLoading ? (
+              <p className="text-slate-500 text-sm">Yükleniyor...</p>
+            ) : patients.length === 0 ? (
+              <p className="text-slate-500 text-sm">Henüz danışan yok. Danışan mesajlaşmaya başladığında burada görünecek.</p>
+            ) : (
+              <ul className="space-y-2">
+                {patients.map((row) => (
+                  <li key={row.patientId} className="flex items-center justify-between gap-3 py-2 border-b border-slate-100 last:border-0">
+                    <span className="font-500 text-slate-900">{row.patientName}</span>
+                    <Link
+                      to="/mesajlar"
+                      state={{ patientId: row.patientId, patientName: row.patientName }}
+                      className="text-sm font-500 text-diapal-600 hover:underline"
+                    >
+                      Mesajlaş
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
           </section>
           <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <h3 className="text-lg font-700 text-slate-900 mb-2">Kazanılan rozetler</h3>

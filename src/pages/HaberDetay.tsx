@@ -1,10 +1,27 @@
+import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getNewsBySlug } from '../lib/news'
+import { getNewsBySlugAsync } from '../lib/news'
+import type { NewsItem } from '../lib/news'
 
 export default function HaberDetay() {
   const { slug } = useParams<{ slug: string }>()
-  const item = slug ? getNewsBySlug(slug) : null
+  const [item, setItem] = useState<NewsItem | null>(null)
+  const [loading, setLoading] = useState(!!slug)
+  useEffect(() => {
+    if (!slug) return
+    getNewsBySlugAsync(slug).then((n) => {
+      setItem(n ?? null)
+      setLoading(false)
+    })
+  }, [slug])
 
+  if (loading) {
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-20 text-center text-slate-500">
+        Yükleniyor...
+      </div>
+    )
+  }
   if (!item) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">

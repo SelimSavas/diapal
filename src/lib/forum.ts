@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient'
+
 export type ForumTopic = {
   id: string
   title: string
@@ -17,103 +19,124 @@ export type ForumReply = {
   createdAt: string
 }
 
-const TOPICS_KEY = 'diapal_forum_topics'
-const REPLIES_KEY = 'diapal_forum_replies'
+export async function getTopics(): Promise<ForumTopic[]> {
+  const { data, error } = await supabase
+    .from('forum_topics')
+    .select('id, title, category, author_id, author_name, body, created_at')
+    .order('created_at', { ascending: false })
+  if (error) {
+    console.error(error)
+    return []
+  }
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    title: r.title,
+    category: r.category,
+    authorId: r.author_id,
+    authorName: r.author_name,
+    body: r.body,
+    createdAt: r.created_at,
+  }))
+}
 
-const SEED_TOPICS: ForumTopic[] = [
-  { id: '1', title: 'Tip 2 tanısı yeni aldım, nereden başlamalıyım?', category: 'Yeni tanı', authorId: 'seed1', authorName: 'Ayşe K.', body: 'Merhaba, bir hafta önce Tip 2 tanısı aldım. Beslenme ve ilaç konusunda nereden başlamamı önerirsiniz? Teşekkürler.', createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: '2', title: 'Diyet listesi paylaşan var mı?', category: 'Beslenme', authorId: 'seed2', authorName: 'Mehmet D.', body: 'Diyabete uygun örnek bir haftalık diyet listesi paylaşabilecek var mı?', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: '3', title: 'Sensör kullananlar deneyimlerini yazabilir mi?', category: 'Teknoloji & cihazlar', authorId: 'seed3', authorName: 'Zeynep A.', body: 'Sürekli glukoz ölçüm sensörü kullanmayı düşünüyorum. Deneyimi olanlar avantaj ve dezavantajları yazar mı?', createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: '4', title: 'İş yerinde ölçüm ve insülin için öneriler', category: 'Günlük yaşam', authorId: 'seed4', authorName: 'Can Y.', body: 'Ofiste kan şekeri ölçümü ve insülin yapmak zor geliyor. Nasıl organize ettiniz?', createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString() },
-]
+export type ForumTopicWithMeta = ForumTopic & { bestReplyId?: string | null }
 
-const SEED_REPLIES: ForumReply[] = [
-  { id: 'r1', topicId: '1', authorId: 'seed2', authorName: 'Mehmet D.', body: 'Önce bir diyetisyen ve endokrinoloji randevusu al. İlaçları düzenli kullan, ölçümleri kaydet. Bu sitedeki Diyabet Bilgisi bölümü de işine yarar.', createdAt: new Date(Date.now() - 1.5 * 24 * 60 * 60 * 1000).toISOString() },
-  { id: 'r2', topicId: '1', authorId: 'seed3', authorName: 'Zeynep A.', body: 'Ben de yeni tanı aldığımda çok panikledim. Zamanla alışıyorsun, kendine iyi bak.', createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() },
-]
-
-function loadTopics(): ForumTopic[] {
-  try {
-    const raw = localStorage.getItem(TOPICS_KEY)
-    if (raw) return JSON.parse(raw)
-    localStorage.setItem(TOPICS_KEY, JSON.stringify(SEED_TOPICS))
-    return SEED_TOPICS
-  } catch {
-    return SEED_TOPICS
+export async function getTopic(id: string): Promise<ForumTopicWithMeta | undefined> {
+  const { data, error } = await supabase
+    .from('forum_topics')
+    .select('id, title, category, author_id, author_name, body, created_at, best_reply_id')
+    .eq('id', id)
+    .maybeSingle()
+  if (error || !data) return undefined
+  return {
+    id: data.id,
+    title: data.title,
+    category: data.category,
+    authorId: data.author_id,
+    authorName: data.author_name,
+    body: data.body,
+    createdAt: data.created_at,
+    bestReplyId: data.best_reply_id ?? undefined,
   }
 }
 
-function loadReplies(): ForumReply[] {
-  try {
-    const raw = localStorage.getItem(REPLIES_KEY)
-    if (raw) return JSON.parse(raw)
-    localStorage.setItem(REPLIES_KEY, JSON.stringify(SEED_REPLIES))
-    return SEED_REPLIES
-  } catch {
-    return SEED_REPLIES
+export async function getRepliesForTopic(topicId: string): Promise<ForumReply[]> {
+  const { data, error } = await supabase
+    .from('forum_replies')
+    .select('id, topic_id, author_id, author_name, body, created_at')
+    .eq('topic_id', topicId)
+    .order('created_at', { ascending: true })
+  if (error) {
+    console.error(error)
+    return []
   }
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    topicId: r.topic_id,
+    authorId: r.author_id,
+    authorName: r.author_name,
+    body: r.body,
+    createdAt: r.created_at,
+  }))
 }
 
-export function getTopics(): ForumTopic[] {
-  return loadTopics()
+export async function getReplyCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.from('forum_replies').select('topic_id')
+  if (error) return {}
+  const counts: Record<string, number> = {}
+  for (const r of data ?? []) {
+    counts[r.topic_id] = (counts[r.topic_id] ?? 0) + 1
+  }
+  return counts
 }
 
-export function getTopic(id: string): ForumTopic | undefined {
-  return loadTopics().find((t) => t.id === id)
+export function getReplyCount(_topicId: string): number {
+  return 0
 }
 
-export function getRepliesForTopic(topicId: string): ForumReply[] {
-  return loadReplies().filter((r) => r.topicId === topicId).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-}
-
-export function getReplyCount(topicId: string): number {
-  return loadReplies().filter((r) => r.topicId === topicId).length
-}
-
-export function addTopic(topic: Omit<ForumTopic, 'id' | 'createdAt'>): ForumTopic {
-  const topics = loadTopics()
-  const newTopic: ForumTopic = {
+export async function addTopic(topic: Omit<ForumTopic, 'id' | 'createdAt'>): Promise<ForumTopic> {
+  const id = `t_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  const { error } = await supabase.from('forum_topics').insert({
+    id,
+    title: topic.title,
+    category: topic.category,
+    author_id: topic.authorId,
+    author_name: topic.authorName,
+    body: topic.body,
+  })
+  if (error) throw error
+  return {
     ...topic,
-    id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    id,
     createdAt: new Date().toISOString(),
   }
-  topics.unshift(newTopic)
-  localStorage.setItem(TOPICS_KEY, JSON.stringify(topics))
-  return newTopic
 }
 
-export function addReply(reply: Omit<ForumReply, 'id' | 'createdAt'>): ForumReply {
-  const replies = loadReplies()
-  const newReply: ForumReply = {
+export async function addReply(reply: Omit<ForumReply, 'id' | 'createdAt'>): Promise<ForumReply> {
+  const id = `r_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`
+  const { error } = await supabase.from('forum_replies').insert({
+    id,
+    topic_id: reply.topicId,
+    author_id: reply.authorId,
+    author_name: reply.authorName,
+    body: reply.body,
+  })
+  if (error) throw error
+  return {
     ...reply,
-    id: `r_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+    id,
     createdAt: new Date().toISOString(),
   }
-  replies.push(newReply)
-  localStorage.setItem(REPLIES_KEY, JSON.stringify(replies))
-  return newReply
 }
 
-export function deleteTopic(topicId: string): boolean {
-  const topics = loadTopics().filter((t) => t.id !== topicId)
-  localStorage.setItem(TOPICS_KEY, JSON.stringify(topics))
-  const replies = loadReplies().filter((r) => r.topicId !== topicId)
-  localStorage.setItem(REPLIES_KEY, JSON.stringify(replies))
-  const m = loadMeta()
-  delete m.topicLikes[topicId]
-  delete m.bestAnswer[topicId]
-  delete m.subscriptions[topicId]
-  saveMeta(m)
-  return true
+export async function deleteTopic(topicId: string): Promise<boolean> {
+  const { error } = await supabase.from('forum_topics').delete().eq('id', topicId)
+  return !error
 }
 
-export function deleteReply(replyId: string): boolean {
-  const replies = loadReplies().filter((r) => r.id !== replyId)
-  localStorage.setItem(REPLIES_KEY, JSON.stringify(replies))
-  const m = loadMeta()
-  delete m.replyLikes[replyId]
-  saveMeta(m)
-  return true
+export async function deleteReply(replyId: string): Promise<boolean> {
+  const { error } = await supabase.from('forum_replies').delete().eq('id', replyId)
+  return !error
 }
 
 export const FORUM_CATEGORIES = [
@@ -139,113 +162,140 @@ export function formatRelativeDate(iso: string): string {
   return d.toLocaleDateString('tr-TR')
 }
 
-// --- Likes, best answer, subscriptions (localStorage meta)
-const META_KEY = 'diapal_forum_meta'
+// --- Likes, best answer, subscriptions (Supabase)
 
-type ForumMeta = {
-  topicLikes: Record<string, string[]>
-  replyLikes: Record<string, string[]>
-  bestAnswer: Record<string, string>
-  subscriptions: Record<string, string[]>
-}
-
-function loadMeta(): ForumMeta {
-  try {
-    const raw = localStorage.getItem(META_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return { topicLikes: {}, replyLikes: {}, bestAnswer: {}, subscriptions: {} }
-}
-
-function saveMeta(m: ForumMeta): void {
-  localStorage.setItem(META_KEY, JSON.stringify(m))
-}
-
-export function getTopicLikeCount(topicId: string): number {
-  const m = loadMeta()
-  return (m.topicLikes[topicId] || []).length
-}
-
-export function isTopicLikedBy(topicId: string, userId: string): boolean {
-  const m = loadMeta()
-  return (m.topicLikes[topicId] || []).includes(userId)
-}
-
-export function toggleTopicLike(topicId: string, userId: string): boolean {
-  const m = loadMeta()
-  const arr = m.topicLikes[topicId] || []
-  const idx = arr.indexOf(userId)
-  if (idx >= 0) {
-    arr.splice(idx, 1)
-  } else {
-    arr.push(userId)
+export async function getTopicLikeCounts(): Promise<Record<string, number>> {
+  const { data, error } = await supabase.from('forum_topic_likes').select('topic_id')
+  if (error) return {}
+  const counts: Record<string, number> = {}
+  for (const r of data ?? []) {
+    counts[r.topic_id] = (counts[r.topic_id] ?? 0) + 1
   }
-  m.topicLikes[topicId] = arr
-  saveMeta(m)
-  return arr.includes(userId)
+  return counts
 }
 
-export function getReplyLikeCount(replyId: string): number {
-  const m = loadMeta()
-  return (m.replyLikes[replyId] || []).length
+export async function getTopicsLikedByUser(userId: string): Promise<Set<string>> {
+  const { data, error } = await supabase
+    .from('forum_topic_likes')
+    .select('topic_id')
+    .eq('user_id', userId)
+  if (error) return new Set()
+  return new Set((data ?? []).map((r) => r.topic_id))
 }
 
-export function isReplyLikedBy(replyId: string, userId: string): boolean {
-  const m = loadMeta()
-  return (m.replyLikes[replyId] || []).includes(userId)
+export async function toggleTopicLike(topicId: string, userId: string): Promise<boolean> {
+  const { data: existing } = await supabase
+    .from('forum_topic_likes')
+    .select('topic_id')
+    .eq('topic_id', topicId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (existing) {
+    await supabase.from('forum_topic_likes').delete().eq('topic_id', topicId).eq('user_id', userId)
+    return false
+  }
+  await supabase.from('forum_topic_likes').insert({ topic_id: topicId, user_id: userId })
+  return true
 }
 
-export function toggleReplyLike(replyId: string, userId: string): boolean {
-  const m = loadMeta()
-  const arr = m.replyLikes[replyId] || []
-  const idx = arr.indexOf(userId)
-  if (idx >= 0) arr.splice(idx, 1)
-  else arr.push(userId)
-  m.replyLikes[replyId] = arr
-  saveMeta(m)
-  return arr.includes(userId)
+export async function getReplyLikeCountsForTopic(topicId: string): Promise<Record<string, number>> {
+  const { data: replies } = await supabase.from('forum_replies').select('id').eq('topic_id', topicId)
+  const replyIds = (replies ?? []).map((r) => r.id)
+  if (replyIds.length === 0) return {}
+  const { data: likes, error } = await supabase.from('forum_reply_likes').select('reply_id').in('reply_id', replyIds)
+  if (error) return {}
+  const counts: Record<string, number> = {}
+  for (const r of likes ?? []) {
+    counts[r.reply_id] = (counts[r.reply_id] ?? 0) + 1
+  }
+  return counts
 }
 
-export function getBestAnswerReplyId(topicId: string): string | null {
-  const m = loadMeta()
-  return m.bestAnswer[topicId] || null
+export async function getRepliesLikedByUserForTopic(userId: string, topicId: string): Promise<Set<string>> {
+  const { data: replyIds } = await supabase.from('forum_replies').select('id').eq('topic_id', topicId)
+  const ids = (replyIds ?? []).map((r) => r.id)
+  if (ids.length === 0) return new Set()
+  const { data, error } = await supabase
+    .from('forum_reply_likes')
+    .select('reply_id')
+    .eq('user_id', userId)
+    .in('reply_id', ids)
+  if (error) return new Set()
+  return new Set((data ?? []).map((r) => r.reply_id))
 }
 
-export function setBestAnswer(topicId: string, replyId: string | null): void {
-  const m = loadMeta()
-  if (replyId) m.bestAnswer[topicId] = replyId
-  else delete m.bestAnswer[topicId]
-  saveMeta(m)
+export async function toggleReplyLike(replyId: string, userId: string): Promise<boolean> {
+  const { data: existing } = await supabase
+    .from('forum_reply_likes')
+    .select('reply_id')
+    .eq('reply_id', replyId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (existing) {
+    await supabase.from('forum_reply_likes').delete().eq('reply_id', replyId).eq('user_id', userId)
+    return false
+  }
+  await supabase.from('forum_reply_likes').insert({ reply_id: replyId, user_id: userId })
+  return true
 }
 
-export function isSubscribed(topicId: string, userId: string): boolean {
-  const m = loadMeta()
-  return (m.subscriptions[topicId] || []).includes(userId)
+export async function getBestAnswerReplyId(topicId: string): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('forum_topics')
+    .select('best_reply_id')
+    .eq('id', topicId)
+    .maybeSingle()
+  if (error || !data?.best_reply_id) return null
+  return data.best_reply_id
 }
 
-export function toggleSubscription(topicId: string, userId: string): boolean {
-  const m = loadMeta()
-  const arr = m.subscriptions[topicId] || []
-  const idx = arr.indexOf(userId)
-  if (idx >= 0) arr.splice(idx, 1)
-  else arr.push(userId)
-  m.subscriptions[topicId] = arr
-  saveMeta(m)
-  return arr.includes(userId)
+export async function setBestAnswer(topicId: string, replyId: string | null): Promise<void> {
+  const payload = replyId ? { best_reply_id: replyId } : { best_reply_id: null }
+  await supabase.from('forum_topics').update(payload).eq('id', topicId)
+}
+
+export async function isSubscribed(topicId: string, userId: string): Promise<boolean> {
+  const { data } = await supabase
+    .from('forum_topic_subscriptions')
+    .select('topic_id')
+    .eq('topic_id', topicId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  return !!data
+}
+
+export async function toggleSubscription(topicId: string, userId: string): Promise<boolean> {
+  const { data: existing } = await supabase
+    .from('forum_topic_subscriptions')
+    .select('topic_id')
+    .eq('topic_id', topicId)
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (existing) {
+    await supabase.from('forum_topic_subscriptions').delete().eq('topic_id', topicId).eq('user_id', userId)
+    return false
+  }
+  await supabase.from('forum_topic_subscriptions').insert({ topic_id: topicId, user_id: userId })
+  return true
 }
 
 export type ForumSort = 'newest' | 'replies' | 'likes'
 
-export function sortTopics(topics: ForumTopic[], sort: ForumSort): ForumTopic[] {
-  const replies = loadReplies()
-  const count = (t: ForumTopic) => replies.filter((r) => r.topicId === t.id).length
+export function sortTopics(
+  topics: ForumTopic[],
+  sort: ForumSort,
+  replyCounts?: Record<string, number>,
+  topicLikeCounts?: Record<string, number>
+): ForumTopic[] {
+  const replyCount = (t: ForumTopic) => (replyCounts ? (replyCounts[t.id] ?? 0) : 0)
+  const likeCount = (t: ForumTopic) => (topicLikeCounts ? (topicLikeCounts[t.id] ?? 0) : 0)
   if (sort === 'newest') {
     return [...topics].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
   }
   if (sort === 'likes') {
-    return [...topics].sort((a, b) => getTopicLikeCount(b.id) - getTopicLikeCount(a.id))
+    return [...topics].sort((a, b) => likeCount(b) - likeCount(a))
   }
-  return [...topics].sort((a, b) => count(b) - count(a))
+  return [...topics].sort((a, b) => replyCount(b) - replyCount(a))
 }
 
 export function searchTopics(topics: ForumTopic[], query: string): ForumTopic[] {

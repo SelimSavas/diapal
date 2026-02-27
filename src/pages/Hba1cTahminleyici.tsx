@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabaseClient'
 
 type Measurement = {
   id: string
@@ -25,15 +26,7 @@ function estimateHba1c(avgGlucose: number): number {
 export default function Hba1cTahminleyici() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [measurements, setMeasurements] = useState<Measurement[]>(() => {
-    try {
-      const raw = localStorage.getItem('diapal_hba1c_measurements')
-      if (!raw) return []
-      return JSON.parse(raw)
-    } catch {
-      return []
-    }
-  })
+  const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10))
   const [value, setValue] = useState('')
   const [context, setContext] = useState<Measurement['context']>('aclik')
@@ -43,21 +36,57 @@ export default function Hba1cTahminleyici() {
   }, [user, navigate])
 
   useEffect(() => {
-    if (measurements.length > 0) {
-      localStorage.setItem('diapal_hba1c_measurements', JSON.stringify(measurements))
-    } else {
-      localStorage.removeItem('diapal_hba1c_measurements')
+    if (!user) return
+    const load = async () => {
+      const { data, error } = await supabase
+        .from('measurements')
+        .select('id, measured_at, value_mgdl, context')
+        .eq('user_id', user.id)
+        .gte('measured_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
+        .order('measured_at', { ascending: true })
+        .limit(300)
+      if (error) {
+        // eslint-disable-next-line no-console
+        console.error(error)
+        return
+      }
+      const mapped: Measurement[] =
+        data?.map((r) => {
+          const d = new Date(r.measured_at as string)
+          return {
+            id: String(r.id),
+            date: d.toISOString().slice(0, 10),
+            value: Number(r.value_mgdl),
+            context: ((r.context as string) || 'diger') as Measurement['context'],
+          }
+        }) ?? []
+      setMeasurements(mapped)
     }
-  }, [measurements])
+    load()
+  }, [user])
 
-  const addMeasurement = (e: React.FormEvent) => {
+  const addMeasurement = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!user) return
     const v = Number(value.replace(',', '.'))
     if (!v || v <= 0 || v > 500) return
+    const [year, month, day] = date.split('-').map(Number)
+    const measuredAt = new Date(year, (month || 1) - 1, day || 1)
+    const { error } = await supabase.from('measurements').insert({
+      user_id: user.id,
+      value_mgdl: v,
+      measured_at: measuredAt.toISOString(),
+      context,
+    })
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error(error)
+      return
+    }
     setMeasurements((prev) => [
       ...prev,
       {
-        id: `m_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        id: `local_${Date.now()}`,
         date,
         value: v,
         context,

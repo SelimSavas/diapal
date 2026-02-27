@@ -7,7 +7,7 @@ export type PendingRegistration = {
   email: string
   name: string
   password: string
-  role: 'hasta' | 'doktor'
+  role: 'hasta' | 'doktor' | 'admin'
   diabetesType?: string
   branch?: string
   city?: string

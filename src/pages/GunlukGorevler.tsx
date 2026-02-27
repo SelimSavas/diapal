@@ -5,7 +5,7 @@ import {
   DAILY_CHALLENGES,
   BADGES,
   toggleChallenge,
-  getProgressForDisplay,
+  ensureProgressLoaded,
   type UserChallengeProgress,
 } from '../lib/challenges'
 
@@ -16,7 +16,9 @@ export default function GunlukGorevler() {
 
   useEffect(() => {
     if (!user) navigate('/kayit', { replace: true })
-    else setProgress(getProgressForDisplay(user.id))
+    else {
+      ensureProgressLoaded(user.id).then((p) => setProgress(p))
+    }
   }, [user, navigate])
 
   const handleToggle = (challengeId: string) => {

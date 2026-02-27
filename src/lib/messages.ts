@@ -1,3 +1,5 @@
+import { supabase } from './supabaseClient'
+
 export type Message = {
   id: string
   conversationId: string
@@ -13,101 +15,138 @@ export type Conversation = {
   updatedAt: string
 }
 
-const CONVERSATIONS_KEY = 'diapal_conversations'
-const MESSAGES_KEY = 'diapal_messages'
-
-function loadConversations(): Conversation[] {
-  try {
-    const raw = localStorage.getItem(CONVERSATIONS_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return []
-}
-
-function saveConversations(c: Conversation[]) {
-  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(c))
-}
-
-function loadMessages(): Message[] {
-  try {
-    const raw = localStorage.getItem(MESSAGES_KEY)
-    if (raw) return JSON.parse(raw)
-  } catch {}
-  return []
-}
-
-function saveMessages(m: Message[]) {
-  localStorage.setItem(MESSAGES_KEY, JSON.stringify(m))
-}
-
 function makeConvId(id1: string, id2: string): string {
   return [id1, id2].sort().join('_')
 }
 
-export function getOrCreateConversation(
+function rowToConversation(r: {
+  id: string
+  user1_id: string
+  user2_id: string
+  user1_name: string
+  user2_name: string
+  updated_at: string
+}): Conversation {
+  return {
+    id: r.id,
+    participants: [
+      { userId: r.user1_id, userName: r.user1_name },
+      { userId: r.user2_id, userName: r.user2_name },
+    ],
+    updatedAt: r.updated_at,
+  }
+}
+
+export async function getOrCreateConversation(
   userId1: string,
   userName1: string,
   userId2: string,
   userName2: string
-): Conversation {
+): Promise<Conversation> {
   const convId = makeConvId(userId1, userId2)
-  const convs = loadConversations()
-  let conv = convs.find(
-    (c) =>
-      c.participants.some((p) => p.userId === userId1) && c.participants.some((p) => p.userId === userId2)
-  )
-  if (conv) return conv
-  conv = {
+  const [u1, u2] = [userId1, userId2].sort()
+  const u1Name = u1 === userId1 ? userName1 : userName2
+  const u2Name = u2 === userId2 ? userName2 : userName1
+
+  const { data: existing } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('id', convId)
+    .maybeSingle()
+
+  if (existing) return rowToConversation(existing)
+
+  await supabase.from('conversations').insert({
     id: convId,
-    participants: [
-      { userId: userId1, userName: userName1 },
-      { userId: userId2, userName: userName2 },
-    ],
-    updatedAt: new Date().toISOString(),
+    user1_id: u1,
+    user2_id: u2,
+    user1_name: u1Name,
+    user2_name: u2Name,
+    updated_at: new Date().toISOString(),
+  })
+
+  const { data: created } = await supabase
+    .from('conversations')
+    .select('*')
+    .eq('id', convId)
+    .single()
+
+  return rowToConversation(created!)
+}
+
+export async function getConversationsForUser(userId: string): Promise<Conversation[]> {
+  const { data, error } = await supabase
+    .from('conversations')
+    .select('*')
+    .or(`user1_id.eq.${userId},user2_id.eq.${userId}`)
+    .order('updated_at', { ascending: false })
+
+  if (error) {
+    console.error(error)
+    return []
   }
-  convs.push(conv)
-  saveConversations(convs)
-  return conv
+  return (data ?? []).map(rowToConversation)
 }
 
-export function getConversationsForUser(userId: string): Conversation[] {
-  return loadConversations()
-    .filter((c) => c.participants.some((p) => p.userId === userId))
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+export async function getMessages(conversationId: string): Promise<Message[]> {
+  const { data, error } = await supabase
+    .from('messages')
+    .select('id, conversation_id, from_user_id, to_user_id, body, created_at')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true })
+
+  if (error) {
+    console.error(error)
+    return []
+  }
+
+  return (data ?? []).map((r) => ({
+    id: r.id,
+    conversationId: r.conversation_id,
+    fromUserId: r.from_user_id,
+    toUserId: r.to_user_id,
+    body: r.body,
+    createdAt: r.created_at,
+  }))
 }
 
-export function getMessages(conversationId: string): Message[] {
-  return loadMessages()
-    .filter((m) => m.conversationId === conversationId)
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-}
-
-export function sendMessage(
+export async function sendMessage(
   conversationId: string,
   fromUserId: string,
   toUserId: string,
   body: string
-): Message {
-  const messages = loadMessages()
-  const msg: Message = {
-    id: `msg_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
-    conversationId,
-    fromUserId,
-    toUserId,
-    body: body.trim(),
-    createdAt: new Date().toISOString(),
+): Promise<Message> {
+  const { data: inserted, error } = await supabase
+    .from('messages')
+    .insert({
+      conversation_id: conversationId,
+      from_user_id: fromUserId,
+      to_user_id: toUserId,
+      body: body.trim(),
+    })
+    .select('id, conversation_id, from_user_id, to_user_id, body, created_at')
+    .single()
+
+  if (error) throw error
+
+  await supabase
+    .from('conversations')
+    .update({ updated_at: inserted!.created_at })
+    .eq('id', conversationId)
+
+  return {
+    id: inserted!.id,
+    conversationId: inserted!.conversation_id,
+    fromUserId: inserted!.from_user_id,
+    toUserId: inserted!.to_user_id,
+    body: inserted!.body,
+    createdAt: inserted!.created_at,
   }
-  messages.push(msg)
-  saveMessages(messages)
-  const convs = loadConversations()
-  const conv = convs.find((c) => c.id === conversationId)
-  if (conv) {
-    conv.updatedAt = msg.createdAt
-    saveConversations(convs)
-  }
-  return msg
 }
 
-export function getOtherParticipant(conv: Conversation, currentUserId: string): { userId: string; userName: string } | null {
+export function getOtherParticipant(
+  conv: Conversation,
+  currentUserId: string
+): { userId: string; userName: string } | null {
   return conv.participants.find((p) => p.userId !== currentUserId) ?? null
 }

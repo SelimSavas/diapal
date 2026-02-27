@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import {
-  RECIPES,
+  getRecipesAsync,
   getCategoryLabel,
   searchRecipes,
   type Recipe,
@@ -24,13 +24,20 @@ export default function Tarifler() {
   const { user } = useAuth()
   const [category, setCategory] = useState<RecipeCategory | 'all'>('all')
   const [query, setQuery] = useState('')
+  const [allRecipes, setAllRecipes] = useState<Recipe[]>([])
+  const [loading, setLoading] = useState(true)
   const [favVersion, setFavVersion] = useState(0)
-
+  useEffect(() => {
+    getRecipesAsync().then((list) => {
+      setAllRecipes(list)
+      setLoading(false)
+    })
+  }, [])
   const list = useMemo(() => {
-    let items: Recipe[] = category === 'all' ? RECIPES : RECIPES.filter((r) => r.category === category)
-    if (query.trim()) items = searchRecipes(query.trim())
+    let items: Recipe[] = category === 'all' ? allRecipes : allRecipes.filter((r) => r.category === category)
+    if (query.trim()) items = searchRecipes(query.trim(), items)
     return items
-  }, [category, query, favVersion])
+  }, [allRecipes, category, query, favVersion])
 
   const handleToggleFav = (id: string) => {
     if (!user) return
@@ -74,6 +81,9 @@ export default function Tarifler() {
         ))}
       </div>
 
+      {loading ? (
+        <p className="text-center text-slate-500 py-12">Yükleniyor...</p>
+      ) : (
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {list.map((r) => {
           const isFav = user ? isFavorite(user.id, 'recipe', r.id) : false
@@ -114,8 +124,8 @@ export default function Tarifler() {
           )
         })}
       </div>
-
-      {list.length === 0 && (
+      )}
+      {!loading && list.length === 0 && (
         <p className="text-center text-slate-500 py-12">Bu kriterlere uygun tarif bulunamadı.</p>
       )}
     </div>

@@ -120,7 +120,7 @@ export default function Footer() {
               </span>
             </Link>
             <p className="mt-3 text-sm text-slate-400 max-w-xs leading-relaxed">
-              Diyabet hastaları ve uzmanları bir araya getiren, bilgi ve dayanışma platformu.
+              Diyabetle yaşayanları ve uzmanları bir araya getiren, bilgi ve dayanışma platformu.
             </p>
           </div>
           <NavColumn title="İçerik" items={quickAccess} />

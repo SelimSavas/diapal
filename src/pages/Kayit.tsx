@@ -18,7 +18,7 @@ const DIABETES_TYPE_OPTIONS = [
   { id: 4, label: 'Gebelik Diyabeti (Gestasyonel)', value: 'gestational' },
   { id: 5, label: 'LADA (Tip 1.5)', value: 'lada' },
   { id: 6, label: 'MODY', value: 'mody' },
-  { id: 7, label: 'Hasta Yakını / Ebeveyn', value: 'caregiver' },
+  { id: 7, label: 'Yakın / Ebeveyn', value: 'caregiver' },
   { id: 8, label: 'Diğer / Bilmiyorum', value: 'other' },
 ]
 
@@ -150,7 +150,7 @@ export default function Kayit() {
         <p className="mt-2 text-slate-600">
           {step === 'verify' && isEmailVerificationConfigured()
             ? `${pendingEmail} adresine gönderilen 6 haneli kodu girin.`
-            : 'Diapal topluluğuna katıl — hasta veya doktor olarak profil oluştur.'}
+            : 'Diapal topluluğuna katıl — üye veya doktor olarak profil oluştur.'}
         </p>
       </div>
 
@@ -162,7 +162,7 @@ export default function Kayit() {
             role === 'hasta' ? 'bg-white text-diapal-700 shadow-sm' : 'text-slate-600 hover:text-slate-900 active:bg-slate-100'
           }`}
         >
-          Hasta
+          Üye
         </button>
         <button
           type="button"

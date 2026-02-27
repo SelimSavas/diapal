@@ -27,7 +27,7 @@ function normalize(s: string): string {
     .replace(/[öoÖO]/g, 'o')
 }
 
-export function searchSite(query: string): SearchResult[] {
+export async function searchSite(query: string): Promise<SearchResult[]> {
   const q = normalize(query.trim())
   if (q.length < 2) return []
 
@@ -46,7 +46,7 @@ export function searchSite(query: string): SearchResult[] {
     }
   }
 
-  const topics = getTopics()
+  const topics = await getTopics()
   for (const t of topics) {
     if (normalize(t.title).includes(q) || normalize(t.body).includes(q)) {
       results.push({

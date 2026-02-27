@@ -115,3 +115,16 @@ export function addAdminNews(data: Omit<NewsItem, 'id' | 'slug'>): NewsItem {
   saveAdminNews(list)
   return item
 }
+
+/** Statik + Supabase admin haber/duyuru (public sayfalar için). */
+export async function getNewsAsync(): Promise<NewsItem[]> {
+  const { getAdminNews } = await import('./adminContent')
+  const admin = await getAdminNews()
+  const combined: NewsItem[] = [...NEWS, ...admin]
+  return combined.sort((a, b) => b.date.localeCompare(a.date))
+}
+
+export async function getNewsBySlugAsync(slug: string): Promise<NewsItem | null> {
+  const all = await getNewsAsync()
+  return all.find((n) => n.slug === slug) ?? null
+}

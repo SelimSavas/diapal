@@ -16,19 +16,22 @@ export default function ForumNewTopic() {
     return null
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!title.trim() || !body.trim()) return
     setSubmitting(true)
-    const topic = addTopic({
-      title: title.trim(),
-      category,
-      authorId: user.id,
-      authorName: user.name,
-      body: body.trim(),
-    })
-    setSubmitting(false)
-    navigate(`/forum/${topic.id}`)
+    try {
+      const topic = await addTopic({
+        title: title.trim(),
+        category,
+        authorId: user.id,
+        authorName: user.name,
+        body: body.trim(),
+      })
+      navigate(`/forum/${topic.id}`)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

@@ -7,7 +7,7 @@ import {
   type Measurement,
   type MeasurementType,
 } from '../lib/measurements'
-import { apiGet, apiPost } from '../lib/api'
+import { supabase } from '../lib/supabaseClient'
 
 export default function OlcumGunlugu() {
   const { user } = useAuth()
@@ -29,26 +29,42 @@ export default function OlcumGunlugu() {
     const load = async () => {
       try {
         setLoading(true)
-        const rows = await apiGet<
-          { id: number; valueMgDl: number; measuredAt: number; context?: string | null; note?: string | null }[]
-        >(user.id, '/api/me/measurements')
-        const mapped: Measurement[] = rows.map((r) => {
-          const d = new Date(r.measuredAt)
-          const dateStr = d.toISOString().slice(0, 10)
-          const timeStr = d.toTimeString().slice(0, 5)
-          return {
-            id: String(r.id),
-            userId: user.id,
-            date: dateStr,
-            time: timeStr,
-            value: r.valueMgDl,
-            type: (r.context as MeasurementType) || 'diger',
-            note: r.note || undefined,
-            createdAt: new Date(r.measuredAt).toISOString(),
-          }
+        // Kullanıcı kaydını Supabase'de de güncel tut
+        await supabase.from('users').upsert({
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          diabetes_type: user.diabetesType ?? null,
+          branch: user.branch ?? null,
+          city: user.city ?? null,
         })
-        // En yeni en üstte
-        mapped.sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
+
+        const { data, error } = await supabase
+          .from('measurements')
+          .select('id, value_mgdl, measured_at, context, note')
+          .eq('user_id', user.id)
+          .order('measured_at', { ascending: false })
+          .limit(500)
+
+        if (error) throw error
+
+        const mapped: Measurement[] =
+          data?.map((r) => {
+            const d = new Date(r.measured_at as string)
+            const dateStr = d.toISOString().slice(0, 10)
+            const timeStr = d.toTimeString().slice(0, 5)
+            return {
+              id: String(r.id),
+              userId: user.id,
+              date: dateStr,
+              time: timeStr,
+              value: Number(r.value_mgdl),
+              type: ((r.context as string) || 'diger') as MeasurementType,
+              note: (r.note as string | null) || undefined,
+              createdAt: d.toISOString(),
+            }
+          }) ?? []
+
         setList(mapped)
       } catch (err) {
         // eslint-disable-next-line no-console
@@ -69,13 +85,15 @@ export default function OlcumGunlugu() {
       setSaving(true)
       const [year, month, day] = date.split('-').map(Number)
       const [hour, minute] = time.split(':').map(Number)
-      const measuredAt = new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0).getTime()
-      await apiPost(user.id, '/api/me/measurements', {
-        valueMgDl: v,
-        measuredAt,
+      const measuredAt = new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0)
+      const { error } = await supabase.from('measurements').insert({
+        user_id: user.id,
+        value_mgdl: v,
+        measured_at: measuredAt.toISOString(),
         context: type,
-        note: note.trim() || undefined,
+        note: note.trim() || null,
       })
+      if (error) throw error
       // Optimistic update: prepend new record
       setList((prev) => [
         {

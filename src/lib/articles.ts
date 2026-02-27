@@ -201,3 +201,19 @@ export function addAdminArticle(data: Omit<Article, 'id' | 'slug'>): Article {
   saveAdminArticles(list)
   return article
 }
+
+/** Statik + Supabase admin makaleleri (public sayfalar için). */
+export async function getAllArticlesAsync(): Promise<Article[]> {
+  const { getAdminArticles } = await import('./adminContent')
+  const admin = await getAdminArticles()
+  const combined: Article[] = [
+    ...ARTICLES,
+    ...admin.map((a) => ({ ...a, readMinutes: a.readMinutes })),
+  ]
+  return combined.sort((a, b) => b.date.localeCompare(a.date))
+}
+
+export async function getArticleBySlugAsync(slug: string): Promise<Article | null> {
+  const all = await getAllArticlesAsync()
+  return all.find((a) => a.slug === slug) ?? null
+}
