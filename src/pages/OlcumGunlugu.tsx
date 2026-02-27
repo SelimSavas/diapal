@@ -3,13 +3,11 @@ import { Link, useNavigate } from 'react-router-dom'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAuth } from '../context/AuthContext'
 import {
-  getMeasurementsForUser,
-  addMeasurement,
-  deleteMeasurement,
   MEASUREMENT_TYPE_LABELS,
   type Measurement,
   type MeasurementType,
 } from '../lib/measurements'
+import { apiGet, apiPost } from '../lib/api'
 
 export default function OlcumGunlugu() {
   const { user } = useAuth()
@@ -20,32 +18,91 @@ export default function OlcumGunlugu() {
   const [value, setValue] = useState('')
   const [type, setType] = useState<MeasurementType>('aclik')
   const [note, setNote] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!user) {
       navigate('/kayit', { replace: true })
       return
     }
-    setList(getMeasurementsForUser(user.id))
+    const load = async () => {
+      try {
+        setLoading(true)
+        const rows = await apiGet<
+          { id: number; valueMgDl: number; measuredAt: number; context?: string | null; note?: string | null }[]
+        >(user.id, '/api/me/measurements')
+        const mapped: Measurement[] = rows.map((r) => {
+          const d = new Date(r.measuredAt)
+          const dateStr = d.toISOString().slice(0, 10)
+          const timeStr = d.toTimeString().slice(0, 5)
+          return {
+            id: String(r.id),
+            userId: user.id,
+            date: dateStr,
+            time: timeStr,
+            value: r.valueMgDl,
+            type: (r.context as MeasurementType) || 'diger',
+            note: r.note || undefined,
+            createdAt: new Date(r.measuredAt).toISOString(),
+          }
+        })
+        // En yeni en üstte
+        mapped.sort((a, b) => `${b.date} ${b.time}`.localeCompare(`${a.date} ${a.time}`))
+        setList(mapped)
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
   }, [user, navigate])
 
-  const refresh = () => user && setList(getMeasurementsForUser(user.id))
-
-  const handleAdd = (e: React.FormEvent) => {
+  const handleAdd = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
     const v = Number(value.replace(',', '.'))
     if (!v || v <= 0 || v > 500) return
-    addMeasurement(user.id, { date, time, value: v, type, note: note.trim() || undefined })
-    setValue('')
-    setNote('')
-    refresh()
+    try {
+      setSaving(true)
+      const [year, month, day] = date.split('-').map(Number)
+      const [hour, minute] = time.split(':').map(Number)
+      const measuredAt = new Date(year, (month || 1) - 1, day || 1, hour || 0, minute || 0).getTime()
+      await apiPost(user.id, '/api/me/measurements', {
+        valueMgDl: v,
+        measuredAt,
+        context: type,
+        note: note.trim() || undefined,
+      })
+      // Optimistic update: prepend new record
+      setList((prev) => [
+        {
+          id: `temp_${Date.now()}`,
+          userId: user.id,
+          date,
+          time,
+          value: v,
+          type,
+          note: note.trim() || undefined,
+          createdAt: new Date().toISOString(),
+        },
+        ...prev,
+      ])
+      setValue('')
+      setNote('')
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error(err)
+    } finally {
+      setSaving(false)
+    }
   }
 
   const handleDelete = (id: string) => {
-    if (!user) return
-    deleteMeasurement(user.id, id)
-    refresh()
+    // Şimdilik backend'de silme endpoint'i yok; sadece önyüzden gizleyelim.
+    setList((prev) => prev.filter((m) => m.id !== id))
   }
 
   const chartData = list
@@ -81,7 +138,7 @@ export default function OlcumGunlugu() {
           Ölçüm günlüğü
         </h1>
         <p className="mt-2 text-slate-600">
-          Kan şekeri ölçümlerinizi kaydedin; grafikle takip edin. Bu veriler yalnızca sizin cihazınızda saklanır; tedavi kararı için hekiminize danışın.
+          Kan şekeri ölçümlerinizi kaydedin; grafikle takip edin. Veriler güvenli bir veritabanında saklanır; tedavi kararı için hekiminize danışın.
         </p>
       </header>
 
@@ -144,8 +201,12 @@ export default function OlcumGunlugu() {
             className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm"
           />
         </div>
-        <button type="submit" className="mt-4 px-4 py-2.5 rounded-xl bg-diapal-600 text-white text-sm font-600 hover:bg-diapal-700">
-          Ekle
+        <button
+          type="submit"
+          disabled={saving}
+          className="mt-4 px-4 py-2.5 rounded-xl bg-diapal-600 text-white text-sm font-600 hover:bg-diapal-700 disabled:opacity-60 disabled:pointer-events-none"
+        >
+          {saving ? 'Kaydediliyor…' : 'Ekle'}
         </button>
       </form>
 
@@ -170,7 +231,9 @@ export default function OlcumGunlugu() {
         <h2 className="text-lg font-700 text-slate-900 px-5 py-4 border-b border-slate-100">
           Kayıtlar
         </h2>
-        {list.length === 0 ? (
+        {loading ? (
+          <p className="p-6 text-slate-500 text-sm">Yükleniyor...</p>
+        ) : list.length === 0 ? (
           <p className="p-6 text-slate-500 text-sm">Henüz ölçüm eklemediniz.</p>
         ) : (
           <ul className="divide-y divide-slate-100">

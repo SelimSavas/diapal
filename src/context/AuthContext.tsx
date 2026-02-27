@@ -64,7 +64,7 @@ type AuthContextValue = {
     password: string
     name: string
     role: UserRole
-    diabetesType: string
+    diabetesType?: string
     branch?: string
     city?: string
   }) => { ok: boolean; error?: string }
@@ -100,7 +100,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password: string
       name: string
       role: UserRole
-      diabetesType: string
+      diabetesType?: string
       branch?: string
       city?: string
     }) => {

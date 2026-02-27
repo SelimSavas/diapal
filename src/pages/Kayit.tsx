@@ -57,15 +57,9 @@ export default function Kayit() {
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
-    if (role === 'doktor') {
-      if (!branch) {
-        setError('Lütfen branş / uzmanlık seçin.')
-        return
-      }
-      if (branch === 'other' && !otherBranch.trim()) {
-        setError('Lütfen uzmanlık açıklamasını yazın.')
-        return
-      }
+    if (role === 'doktor' && !branch) {
+      setError('Lütfen branş / uzmanlık seçin.')
+      return
     }
     const branchValue =
       role === 'doktor'
@@ -73,6 +67,7 @@ export default function Kayit() {
           ? otherBranch.trim()
           : DOCTOR_BRANCH_OPTIONS.find((opt) => opt.id === branch)?.label ?? ''
         : undefined
+    const diabetesValue = role === 'doktor' ? undefined : diabetesType
     // E-posta doğrulama pasif: .env yoksa doğrudan kayıt
     if (!isEmailVerificationConfigured()) {
       const result = register({
@@ -80,7 +75,7 @@ export default function Kayit() {
         password,
         name: name.trim(),
         role,
-        diabetesType,
+        ...(diabetesValue && { diabetesType: diabetesValue }),
         ...(role === 'doktor' && { branch: branchValue, city: city.trim() }),
       })
       if (result.ok) navigate('/profil')
@@ -94,7 +89,7 @@ export default function Kayit() {
         name: name.trim(),
         password,
         role,
-        diabetesType,
+        ...(diabetesValue && { diabetesType: diabetesValue }),
         ...(role === 'doktor' && { branch: branchValue, city: city.trim() }),
       })
       await sendVerificationEmail(email.trim(), codeSent)
@@ -114,14 +109,24 @@ export default function Kayit() {
       setError('Kod hatalı veya süresi dolmuş. Yeni kod için kayıt adımına dönüp tekrar gönderin.')
       return
     }
-    const result = register({
-      email: pending.email,
-      password: pending.password,
-      name: pending.name,
-      role: pending.role,
-      diabetesType: pending.diabetesType,
-      ...(pending.role === 'doktor' && { branch: pending.branch?.trim(), city: pending.city?.trim() }),
-    })
+    const result = register(
+      pending.role === 'doktor'
+        ? {
+            email: pending.email,
+            password: pending.password,
+            name: pending.name,
+            role: pending.role,
+            branch: pending.branch?.trim(),
+            city: pending.city?.trim(),
+          }
+        : {
+            email: pending.email,
+            password: pending.password,
+            name: pending.name,
+            role: pending.role,
+            ...(pending.diabetesType && { diabetesType: pending.diabetesType }),
+          }
+    )
     if (result.ok) {
       navigate('/profil')
     } else {
@@ -280,25 +285,27 @@ export default function Kayit() {
             </div>
           </>
         )}
-        <div>
-          <label htmlFor="diabetesType" className="block text-sm font-500 text-slate-700 mb-1.5">
-            Diyabet türü / tipi <span className="text-rose-500">*</span>
-          </label>
-          <select
-            id="diabetesType"
-            value={diabetesType}
-            onChange={(e) => setDiabetesType(e.target.value)}
-            required
-            className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-diapal-500 focus:border-diapal-500 outline-none transition bg-white"
-          >
-            <option value="">Seçiniz</option>
-            {DIABETES_TYPE_OPTIONS.map((opt) => (
-              <option key={opt.id} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {role === 'hasta' && (
+          <div>
+            <label htmlFor="diabetesType" className="block text-sm font-500 text-slate-700 mb-1.5">
+              Diyabet türü / tipi <span className="text-rose-500">*</span>
+            </label>
+            <select
+              id="diabetesType"
+              value={diabetesType}
+              onChange={(e) => setDiabetesType(e.target.value)}
+              required
+              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-diapal-500 focus:border-diapal-500 outline-none transition bg-white"
+            >
+              <option value="">Seçiniz</option>
+              {DIABETES_TYPE_OPTIONS.map((opt) => (
+                <option key={opt.id} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div>
           <label htmlFor="email" className="block text-sm font-500 text-slate-700 mb-1.5">
             E-posta
