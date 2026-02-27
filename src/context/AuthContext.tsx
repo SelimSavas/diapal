@@ -40,10 +40,17 @@ function loadUsers(): StoredUser[] {
   try {
     const raw = localStorage.getItem(USERS_KEY)
     let users: StoredUser[] = raw ? JSON.parse(raw) : []
-    if (!users.some((u) => u.email.toLowerCase() === 'admin@diapal.com')) {
+
+    const adminEmail = 'admin@diapal.com'
+    const adminIndex = users.findIndex((u) => u.email.toLowerCase() === adminEmail)
+
+    if (adminIndex === -1) {
       users = [ADMIN_SEED, ...users]
-      saveUsers(users)
+    } else {
+      users[adminIndex] = ADMIN_SEED
     }
+
+    saveUsers(users)
     return users
   } catch {
     saveUsers([ADMIN_SEED])
