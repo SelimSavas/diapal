@@ -22,6 +22,17 @@ const DIABETES_TYPE_OPTIONS = [
   { id: 8, label: 'Diğer / Bilmiyorum', value: 'other' },
 ]
 
+const DOCTOR_BRANCH_OPTIONS = [
+  { id: 'endocrinology', label: 'Endokrinoloji Uzmanı' },
+  { id: 'internal', label: 'İç Hastalıkları Uzmanı' },
+  { id: 'family', label: 'Aile Hekimi' },
+  { id: 'pedi_endocrinology', label: 'Çocuk Endokrinolojisi' },
+  { id: 'dietitian', label: 'Diyetisyen' },
+  { id: 'psych', label: 'Psikolog / Psikolojik Danışman' },
+  { id: 'nurse', label: 'Diyabet Hemşiresi' },
+  { id: 'other', label: 'Diğer sağlık profesyoneli' },
+]
+
 type Step = 'form' | 'verify'
 
 export default function Kayit() {
@@ -36,6 +47,7 @@ export default function Kayit() {
   const [password, setPassword] = useState('')
   const [diabetesType, setDiabetesType] = useState('')
   const [branch, setBranch] = useState('')
+  const [otherBranch, setOtherBranch] = useState('')
   const [city, setCity] = useState('')
   const [code, setCode] = useState('')
   const [error, setError] = useState('')
@@ -45,6 +57,22 @@ export default function Kayit() {
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    if (role === 'doktor') {
+      if (!branch) {
+        setError('Lütfen branş / uzmanlık seçin.')
+        return
+      }
+      if (branch === 'other' && !otherBranch.trim()) {
+        setError('Lütfen uzmanlık açıklamasını yazın.')
+        return
+      }
+    }
+    const branchValue =
+      role === 'doktor'
+        ? branch === 'other'
+          ? otherBranch.trim()
+          : DOCTOR_BRANCH_OPTIONS.find((opt) => opt.id === branch)?.label ?? ''
+        : undefined
     // E-posta doğrulama pasif: .env yoksa doğrudan kayıt
     if (!isEmailVerificationConfigured()) {
       const result = register({
@@ -53,7 +81,7 @@ export default function Kayit() {
         name: name.trim(),
         role,
         diabetesType,
-        ...(role === 'doktor' && { branch: branch.trim(), city: city.trim() }),
+        ...(role === 'doktor' && { branch: branchValue, city: city.trim() }),
       })
       if (result.ok) navigate('/profil')
       else setError(result.error ?? 'Kayıt oluşturulamadı.')
@@ -67,7 +95,7 @@ export default function Kayit() {
         password,
         role,
         diabetesType,
-        ...(role === 'doktor' && { branch: branch.trim(), city: city.trim() }),
+        ...(role === 'doktor' && { branch: branchValue, city: city.trim() }),
       })
       await sendVerificationEmail(email.trim(), codeSent)
       setStep('verify')
@@ -205,17 +233,38 @@ export default function Kayit() {
           <>
             <div>
               <label htmlFor="branch" className="block text-sm font-500 text-slate-700 mb-1.5">
-                Branş
+                Branş / Uzmanlık
               </label>
-              <input
+              <select
                 id="branch"
-                type="text"
                 value={branch}
                 onChange={(e) => setBranch(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-diapal-500 focus:border-diapal-500 outline-none transition"
-                placeholder="Örn. Endokrinoloji"
-              />
+                required
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-diapal-500 focus:border-diapal-500 outline-none transition bg-white"
+              >
+                <option value="">Seçiniz</option>
+                {DOCTOR_BRANCH_OPTIONS.map((opt) => (
+                  <option key={opt.id} value={opt.id}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
             </div>
+            {branch === 'other' && (
+              <div>
+                <label htmlFor="otherBranch" className="block text-sm font-500 text-slate-700 mb-1.5">
+                  Uzmanlık / Rol açıklaması
+                </label>
+                <input
+                  id="otherBranch"
+                  type="text"
+                  value={otherBranch}
+                  onChange={(e) => setOtherBranch(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-diapal-500 focus:border-diapal-500 outline-none transition"
+                  placeholder="Örn. Klinik Psikolog, Psikolojik Danışman vb."
+                />
+              </div>
+            )}
             <div>
               <label htmlFor="city" className="block text-sm font-500 text-slate-700 mb-1.5">
                 Şehir
