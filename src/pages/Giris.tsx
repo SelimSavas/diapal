@@ -1,10 +1,13 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { PasswordInput } from '../components/PasswordField'
 import { useAuth } from '../context/AuthContext'
 
 export default function Giris() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { login } = useAuth()
+  const passwordResetOk = Boolean((location.state as { passwordResetOk?: boolean } | null)?.passwordResetOk)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -26,6 +29,11 @@ export default function Giris() {
         <h1 className="text-3xl font-800 text-slate-900">Giriş yap</h1>
         <p className="mt-2 text-slate-600">Hesabına giriş yaparak Diapal'dan faydalanmaya devam et.</p>
       </div>
+      {passwordResetOk && (
+        <div className="mb-4 rounded-xl bg-emerald-50 border border-emerald-200 px-4 py-3 text-sm text-emerald-900">
+          Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz.
+        </div>
+      )}
       {error && (
         <div className="mb-4 rounded-xl bg-rose-50 border border-rose-200 px-4 py-3 text-sm text-rose-800">
           {error}
@@ -56,9 +64,8 @@ export default function Giris() {
               Şifremi unuttum
             </Link>
           </div>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

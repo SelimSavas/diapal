@@ -86,7 +86,7 @@ export function clearPendingRegistration(): void {
 
 /**
  * E-posta ile doğrulama kodu gönderir.
- * EmailJS şablonunda {{to_email}} ve {{code}} kullanın.
+ * EmailJS şablonunda {{to_email}} ve/veya {{email}} (alıcı), {{code}} kullanın.
  */
 export async function sendVerificationEmail(toEmail: string, code: string): Promise<void> {
   const publicKey = getPublicKey()
@@ -97,6 +97,16 @@ export async function sendVerificationEmail(toEmail: string, code: string): Prom
 
   await emailjs.send(serviceId, templateId, {
     to_email: toEmail,
+    email: toEmail,
     code,
   })
+}
+
+/** Şifre sıfırlama e-postası için (passwordReset.ts) */
+export function getEmailJsPublicKey(): string {
+  return getPublicKey()
+}
+
+export function getEmailJsServiceId(): string {
+  return getServiceId()
 }

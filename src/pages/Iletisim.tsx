@@ -1,9 +1,12 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getSupportEmail, getSupportMailtoHref } from '../config/site'
 
 type FormType = 'iletisim' | 'randevu'
 
 export default function Iletisim() {
+  const supportEmail = getSupportEmail()
+  const supportMailto = getSupportMailtoHref('Diapal iletişim')
   const [formType, setFormType] = useState<FormType>('iletisim')
   const [submitted, setSubmitted] = useState(false)
   const [form, setForm] = useState({
@@ -185,8 +188,8 @@ export default function Iletisim() {
               </div>
               <div>
                 <p className="text-sm font-500 text-slate-500">E-posta</p>
-                <a href="mailto:diapal@gmail.com" className="mt-1 text-xl font-700 text-slate-900 hover:text-diapal-600 transition-colors break-all">
-                  diapal@gmail.com
+                <a href={supportMailto} className="mt-1 text-xl font-700 text-slate-900 hover:text-diapal-600 transition-colors break-all">
+                  {supportEmail}
                 </a>
               </div>
             </div>

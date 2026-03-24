@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { PasswordInput } from '../components/PasswordField'
 import { useAuth } from '../context/AuthContext'
 import {
   isEmailVerificationConfigured,
@@ -210,9 +211,8 @@ export default function Kayit() {
           <label htmlFor="password" className="block text-sm font-500 text-slate-700 mb-1.5">
             Şifre
           </label>
-          <input
+          <PasswordInput
             id="password"
-            type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             required

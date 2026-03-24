@@ -24,6 +24,7 @@ import Hikayeler from './pages/Hikayeler'
 import HaberlerDuyurular from './pages/HaberlerDuyurular'
 import HaberDetay from './pages/HaberDetay'
 import SifremiUnuttum from './pages/SifremiUnuttum'
+import SifreYenile from './pages/SifreYenile'
 import GeriBildirim from './pages/GeriBildirim'
 import Tarifler from './pages/Tarifler'
 import MeydanOkumalar from './pages/MeydanOkumalar'
@@ -74,6 +75,7 @@ function App() {
           <Route path="giris" element={<Giris />} />
           <Route path="kayit" element={<Kayit />} />
           <Route path="sifremi-unuttum" element={<SifremiUnuttum />} />
+          <Route path="sifre-yenile" element={<SifreYenile />} />
           <Route path="geri-bildirim" element={<GeriBildirim />} />
           <Route path="profil" element={<Profil />} />
         </Route>

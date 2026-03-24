@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
+import { PasswordInput } from '../components/PasswordField'
+import { useAuth, type UserForAdmin, type UserRole } from '../context/AuthContext'
 import { getFeedbackList } from '../lib/feedback'
 import {
   getTopics,
@@ -43,7 +44,23 @@ const RECIPE_CATEGORIES: { id: RecipeCategory; label: string }[] = [
   { id: 'icecek', label: 'İçecek' },
 ]
 
-type Tab = 'makaleler' | 'haberler' | 'tarifler' | 'doktorlar' | 'forum' | 'geri-bildirim' | 'site'
+type Tab = 'makaleler' | 'haberler' | 'tarifler' | 'doktorlar' | 'kullanicilar' | 'forum' | 'geri-bildirim' | 'site'
+
+type BanDuration = '1h' | '24h' | '7d' | '30d' | 'permanent'
+
+const BAN_DURATION_OPTIONS: { id: BanDuration; label: string }[] = [
+  { id: '1h', label: '1 saat' },
+  { id: '24h', label: '24 saat' },
+  { id: '7d', label: '7 gün' },
+  { id: '30d', label: '30 gün' },
+  { id: 'permanent', label: 'Kalıcı' },
+]
+
+function roleLabelTr(role: UserRole): string {
+  if (role === 'admin') return 'Admin'
+  if (role === 'doktor') return 'Doktor'
+  return 'Üye'
+}
 
 const DOCTOR_BRANCH_OPTIONS = [
   { id: 'endocrinology', label: 'Endokrinoloji Uzmanı' },
@@ -105,6 +122,7 @@ export default function Admin() {
     { id: 'haberler', label: 'Haber & Duyuru' },
     { id: 'tarifler', label: 'Yemek Tarifleri' },
     { id: 'doktorlar', label: 'Doktorlar' },
+    { id: 'kullanicilar', label: 'Kullanıcılar' },
     { id: 'forum', label: 'Forum' },
     { id: 'geri-bildirim', label: 'Geri bildirim' },
     { id: 'site', label: 'Site ayarları' },
@@ -136,6 +154,7 @@ export default function Admin() {
       {tab === 'haberler' && <AdminHaberler />}
       {tab === 'tarifler' && <AdminTarifler />}
       {tab === 'doktorlar' && <AdminDoktorlar />}
+      {tab === 'kullanicilar' && <AdminKullanicilar />}
       {tab === 'forum' && (
         <AdminForum
           topics={topics}
@@ -623,13 +642,13 @@ function AdminDoktorlar() {
             placeholder="Ad soyad"
             className="w-full px-4 py-2 rounded-lg border border-slate-200"
           />
-          <input
-            type="password"
+          <PasswordInput
             required
             minLength={6}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="Şifre (en az 6 karakter)"
+            autoComplete="new-password"
             className="w-full px-4 py-2 rounded-lg border border-slate-200"
           />
           <select
@@ -682,6 +701,115 @@ function AdminDoktorlar() {
           ))
         )}
       </ul>
+    </div>
+  )
+}
+
+function AdminKullanicilar() {
+  const { getUsersForAdmin, banUser, unbanUser } = useAuth()
+  const [rows, setRows] = useState<UserForAdmin[]>(() => getUsersForAdmin())
+  const [flash, setFlash] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null)
+
+  const refresh = () => {
+    setRows(getUsersForAdmin())
+  }
+
+  const handleBan = (targetId: string, d: BanDuration) => {
+    if (d === 'permanent' && !confirm('Bu kullanıcıyı kalıcı olarak engellemek istediğinize emin misiniz?')) return
+    setFlash(null)
+    const r = banUser(targetId, d)
+    if (r.ok) {
+      refresh()
+      setFlash({ kind: 'ok', text: 'Engel uygulandı.' })
+    } else {
+      setFlash({ kind: 'err', text: r.error ?? 'İşlem başarısız.' })
+    }
+  }
+
+  const handleUnban = (targetId: string) => {
+    setFlash(null)
+    const r = unbanUser(targetId)
+    if (r.ok) {
+      refresh()
+      setFlash({ kind: 'ok', text: 'Engel kaldırıldı.' })
+    } else {
+      setFlash({ kind: 'err', text: r.error ?? 'İşlem başarısız.' })
+    }
+  }
+
+  const hasBanToClear = (u: UserForAdmin) =>
+    u.bannedUntil != null && u.bannedUntil !== ''
+
+  return (
+    <div className="space-y-4">
+      <p className="text-slate-600 text-sm">
+        Üye ve doktor hesaplarını geçici veya kalıcı olarak engelleyebilirsiniz. Engel bilgisi bu tarayıcıda (
+        <code className="text-xs bg-slate-100 px-1 rounded">localStorage</code>
+        ) saklanır; gerçek bir üretim ortamında sunucu tarafı doğrulama gerekir.
+      </p>
+      {flash && (
+        <p className={`text-sm ${flash.kind === 'ok' ? 'text-emerald-700' : 'text-rose-600'}`}>{flash.text}</p>
+      )}
+      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table className="w-full text-sm text-left min-w-[640px]">
+          <thead>
+            <tr className="border-b border-slate-200 bg-slate-50 text-slate-600">
+              <th className="py-3 px-4 font-600">E-posta</th>
+              <th className="py-3 px-4 font-600">Ad</th>
+              <th className="py-3 px-4 font-600">Rol</th>
+              <th className="py-3 px-4 font-600">Engel</th>
+              <th className="py-3 px-4 font-600">İşlemler</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="py-8 px-4 text-center text-slate-500">
+                  Liste yüklenemedi veya kullanıcı yok.
+                </td>
+              </tr>
+            ) : (
+              rows.map((u) => (
+                <tr key={u.id} className="border-b border-slate-100 last:border-0 align-top">
+                  <td className="py-3 px-4 text-slate-800">{u.email}</td>
+                  <td className="py-3 px-4 text-slate-800">{u.name}</td>
+                  <td className="py-3 px-4 text-slate-600">{roleLabelTr(u.role)}</td>
+                  <td className="py-3 px-4 text-slate-600 whitespace-nowrap">{u.banDisplay}</td>
+                  <td className="py-3 px-4">
+                    {u.role === 'admin' ? (
+                      <span className="text-slate-400 text-xs">Admin hesabı engellenemez</span>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        <div className="flex flex-wrap gap-1">
+                          {BAN_DURATION_OPTIONS.map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => handleBan(u.id, opt.id)}
+                              className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 text-xs font-500 hover:bg-slate-200"
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
+                        </div>
+                        {hasBanToClear(u) && (
+                          <button
+                            type="button"
+                            onClick={() => handleUnban(u.id)}
+                            className="self-start px-2 py-1 rounded-lg bg-emerald-50 text-emerald-800 text-xs font-600 hover:bg-emerald-100"
+                          >
+                            Engeli kaldır
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

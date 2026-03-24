@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getSupportEmail, getSupportMailtoHref } from '../config/site'
 import { useAuth } from '../context/AuthContext'
 
 const quickAccess = [
@@ -66,6 +67,8 @@ function NavColumn({ title, items }: { title: string; items: { to: string; label
 
 export default function Footer() {
   const { user } = useAuth()
+  const supportEmail = getSupportEmail()
+  const supportMailto = getSupportMailtoHref('Diapal destek')
   const [email, setEmail] = useState('')
   const [consent, setConsent] = useState(false)
   const [submitted, setSubmitted] = useState(false)
@@ -121,6 +124,12 @@ export default function Footer() {
             </Link>
             <p className="mt-3 text-sm text-slate-400 max-w-xs leading-relaxed">
               Diyabetle yaşayanları ve uzmanları bir araya getiren, bilgi ve dayanışma platformu.
+            </p>
+            <p className="mt-3 text-sm text-slate-500">
+              Destek:{' '}
+              <a href={supportMailto} className="text-slate-300 hover:text-white underline underline-offset-2">
+                {supportEmail}
+              </a>
             </p>
           </div>
           <NavColumn title="İçerik" items={quickAccess} />

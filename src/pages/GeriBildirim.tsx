@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { getSupportEmail, getSupportMailtoHref } from '../config/site'
 import { addFeedback, type FeedbackType } from '../lib/feedback'
 
 export default function GeriBildirim() {
+  const supportEmail = getSupportEmail()
+  const supportMailto = getSupportMailtoHref('Diapal geri bildirim')
   const [type, setType] = useState<FeedbackType>('sorun')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
@@ -41,6 +44,12 @@ export default function GeriBildirim() {
         <h1 className="text-3xl font-800 text-slate-900">Geri bildirim</h1>
         <p className="mt-2 text-slate-600">
           Bir sorun mu yaşadınız veya öneriniz mi var? Bize yazın.
+        </p>
+        <p className="mt-3 text-sm text-slate-600">
+          Doğrudan e-posta ile de ulaşabilirsiniz:{' '}
+          <a href={supportMailto} className="text-diapal-600 font-500 hover:underline break-all">
+            {supportEmail}
+          </a>
         </p>
       </header>
 
