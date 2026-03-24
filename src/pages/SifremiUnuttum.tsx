@@ -64,16 +64,31 @@ export default function SifremiUnuttum() {
           E-posta adresinizi girin; size şifre sıfırlama bağlantısı gönderelim.
         </p>
       </div>
-      {!emailConfigured && (
+      {!emailConfigured && import.meta.env.DEV && (
         <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
-          <p className="font-600">E-posta gönderimi yapılandırılmadı</p>
+          <p className="font-600">Geliştirme: e-posta yapılandırması eksik</p>
           <p className="mt-1 text-amber-800/90">
-            Geliştirici olarak proje kökünde <code className="text-xs bg-amber-100/80 px-1 rounded">.env</code> dosyasına{' '}
+            Proje kökünde <code className="text-xs bg-amber-100/80 px-1 rounded">.env</code> dosyasına{' '}
             <code className="text-xs bg-amber-100/80 px-1 rounded">VITE_EMAILJS_PUBLIC_KEY</code>,{' '}
-            <code className="text-xs bg-amber-100/80 px-1 rounded">VITE_EMAILJS_SERVICE_ID</code> ve şifre sıfırlama şablonu için{' '}
-            <code className="text-xs bg-amber-100/80 px-1 rounded">VITE_EMAILJS_TEMPLATE_ID_RESET</code> ekleyin. EmailJS panelinde yeni bir şablon oluşturup içinde{' '}
-            <code className="text-xs bg-amber-100/80 px-1 rounded">{'{{to_email}}'}</code> ve{' '}
-            <code className="text-xs bg-amber-100/80 px-1 rounded">{'{{reset_link}}'}</code> alanlarını kullanın.
+            <code className="text-xs bg-amber-100/80 px-1 rounded">VITE_EMAILJS_SERVICE_ID</code> ve{' '}
+            <code className="text-xs bg-amber-100/80 px-1 rounded">VITE_EMAILJS_TEMPLATE_ID_RESET</code> ekleyin. Şablonda{' '}
+            <code className="text-xs bg-amber-100/80 px-1 rounded">{'{{reset_link}}'}</code> kullanın.
+          </p>
+        </div>
+      )}
+      {!emailConfigured && !import.meta.env.DEV && (
+        <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+          <p className="font-600 text-slate-800">Otomatik şifre sıfırlama şu an devre dışı</p>
+          <p className="mt-2 text-slate-600">
+            Hesabınıza erişim için bize{' '}
+            <a href={destekSifreMailto} className="text-diapal-600 font-500 hover:underline break-all">
+              {supportEmail}
+            </a>{' '}
+            adresinden yazabilir veya{' '}
+            <Link to="/iletisim" className="text-diapal-600 font-500 hover:underline">
+              İletişim
+            </Link>{' '}
+            sayfasını kullanabilirsiniz.
           </p>
         </div>
       )}
@@ -100,7 +115,7 @@ export default function SifremiUnuttum() {
         </div>
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (!emailConfigured && !import.meta.env.DEV)}
           className="w-full py-3.5 min-h-[48px] rounded-xl bg-diapal-600 text-white font-600 hover:bg-diapal-700 active:bg-diapal-800 transition-colors touch-manipulation disabled:opacity-60 disabled:pointer-events-none"
         >
           {loading ? 'Gönderiliyor…' : 'Sıfırlama bağlantısı gönder'}

@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { getSupportEmail } from '../config/site'
 import {
   createPasswordResetToken,
   isPasswordResetEmailConfigured,
@@ -337,8 +338,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!isPasswordResetEmailConfigured()) {
       return {
         ok: false,
-        error:
-          'Şifre sıfırlama e-postası için .env içinde VITE_EMAILJS_PUBLIC_KEY, VITE_EMAILJS_SERVICE_ID ve VITE_EMAILJS_TEMPLATE_ID_RESET tanımlanmalıdır.',
+        error: import.meta.env.DEV
+          ? 'Şifre sıfırlama e-postası için .env içinde VITE_EMAILJS_PUBLIC_KEY, VITE_EMAILJS_SERVICE_ID ve VITE_EMAILJS_TEMPLATE_ID_RESET tanımlanmalıdır.'
+          : `Otomatik şifre sıfırlama şu an kullanılamıyor. Lütfen ${getSupportEmail()} adresinden yazın veya İletişim sayfasını kullanın.`,
       }
     }
     clearExpiredBanInPlace(loadUsers())
