@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getProgressForDisplay, BADGES } from '../lib/challenges'
+import { BadgeIconById } from '../components/UiIcons'
 import { supabase } from '../lib/supabaseClient'
 import {
   getDoctorProfile,
@@ -29,6 +30,7 @@ export default function Profil() {
   const [lastMoodText, setLastMoodText] = useState<string | null>(null)
   const [doctorBio, setDoctorBio] = useState('')
   const [doctorPhone, setDoctorPhone] = useState('')
+  const [doctorAvatarUrl, setDoctorAvatarUrl] = useState('')
   const [doctorOnline, setDoctorOnline] = useState(true)
   const [doctorProfileSaving, setDoctorProfileSaving] = useState(false)
   const [patients, setPatients] = useState<DoctorPatientRow[]>([])
@@ -87,6 +89,7 @@ export default function Profil() {
       if (p) {
         setDoctorBio(p.bio ?? '')
         setDoctorPhone(p.phone ?? '')
+        setDoctorAvatarUrl(p.avatarUrl ?? '')
         setDoctorOnline(p.online)
       }
     })
@@ -128,6 +131,7 @@ export default function Profil() {
       await upsertDoctorProfile(user.id, {
         bio: doctorBio.trim() || null,
         phone: doctorPhone.trim() || null,
+        avatarUrl: doctorAvatarUrl.trim() || null,
         online: doctorOnline,
       })
     } finally {
@@ -433,7 +437,7 @@ export default function Profil() {
                     className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 min-w-0"
                     title={b.description}
                   >
-                    <span className="text-2xl shrink-0">{b.icon}</span>
+                    <BadgeIconById badgeId={b.id} className="w-9 h-9 shrink-0 text-amber-600" />
                     <div className="min-w-0">
                       <p className="font-600 text-slate-900 text-sm truncate">{b.name}</p>
                       <p className="text-xs text-slate-500 truncate">{b.requirement}</p>
@@ -467,9 +471,15 @@ export default function Profil() {
         <div className="space-y-8">
           <section className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm">
             <div className="flex items-center gap-4">
-              <div className="w-20 h-20 rounded-full bg-diapal-100 flex items-center justify-center text-diapal-600 font-700 text-2xl">
-                {initial}
-              </div>
+              {doctorAvatarUrl.trim() ? (
+                <div className="w-20 h-20 rounded-full overflow-hidden bg-diapal-100 shrink-0 ring-2 ring-white shadow">
+                  <img src={doctorAvatarUrl.trim()} alt="" className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-diapal-100 flex items-center justify-center text-diapal-600 font-700 text-2xl shrink-0">
+                  {initial}
+                </div>
+              )}
               <div>
                 <h2 className="text-xl font-700 text-slate-900">Doktor profili</h2>
                 <p className="text-slate-600">Profilini yönet, danışan mesajlarına ve randevu taleplerine yanıt ver.</p>
@@ -513,6 +523,16 @@ export default function Profil() {
             <h3 className="text-lg font-700 text-slate-900 mb-2">Profil özeti (Supabase)</h3>
             <p className="text-slate-600 text-sm mb-4">Biyografi ve iletişim bilgilerinizi güncelleyin; danışan listesinde görünsün.</p>
             <form onSubmit={handleSaveDoctorProfile} className="space-y-4">
+              <div>
+                <label className="block text-xs font-500 text-slate-600 mb-1">Profil fotoğrafı (URL)</label>
+                <input
+                  type="url"
+                  value={doctorAvatarUrl}
+                  onChange={(e) => setDoctorAvatarUrl(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm"
+                  placeholder="https://… (kare veya yuvarlak görsel önerilir)"
+                />
+              </div>
               <div>
                 <label className="block text-xs font-500 text-slate-600 mb-1">Biyografi / kısa tanıtım</label>
                 <textarea
@@ -584,7 +604,7 @@ export default function Profil() {
               <div className="flex flex-wrap gap-3">
                 {earnedBadges.map((b) => (
                   <div key={b.id} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-amber-50 border border-amber-100 min-w-0" title={b.description}>
-                    <span className="text-2xl shrink-0">{b.icon}</span>
+                    <BadgeIconById badgeId={b.id} className="w-9 h-9 shrink-0 text-amber-600" />
                     <div className="min-w-0">
                       <p className="font-600 text-slate-900 text-sm truncate">{b.name}</p>
                       <p className="text-xs text-slate-500 truncate">{b.requirement}</p>

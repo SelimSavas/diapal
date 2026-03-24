@@ -1,6 +1,7 @@
-import { useRef, useEffect, useCallback } from 'react'
+import { useRef, useEffect, useCallback, type ComponentType } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { IconBookOpen, IconChatBubble, IconUserMd } from '../components/UiIcons'
 import { getNews } from '../lib/news'
 import { getFeaturedStory } from '../lib/stories'
 
@@ -463,12 +464,12 @@ export default function Home() {
             </p>
           </div>
           <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {[
+            {([
               {
                 title: 'Diyabet bilgisi',
                 description: 'Tip 1, Tip 2, beslenme, egzersiz ve günlük yaşam hakkında güvenilir kaynaklar.',
                 to: '/bilgi',
-                icon: '📚',
+                Icon: IconBookOpen,
                 accent: 'from-sky-500 to-sky-600',
                 bg: 'bg-sky-50',
                 border: 'border-sky-100',
@@ -478,7 +479,7 @@ export default function Home() {
                 title: 'Doktorlarla buluş',
                 description: 'Endokrinoloji ve diyabet uzmanlarına ulaş, randevu ve danışmanlık al.',
                 to: '/doktorlar',
-                icon: '👨‍⚕️',
+                Icon: IconUserMd,
                 accent: 'from-diapal-500 to-diapal-600',
                 bg: 'bg-diapal-50',
                 border: 'border-diapal-100',
@@ -488,20 +489,20 @@ export default function Home() {
                 title: 'Forum & topluluk',
                 description: 'Deneyimlerini paylaş, sorularını sor, aynı yolda yürüyenlerle tanış.',
                 to: '/forum',
-                icon: '💬',
+                Icon: IconChatBubble,
                 accent: 'from-emerald-500 to-emerald-600',
                 bg: 'bg-emerald-50',
                 border: 'border-emerald-100',
                 hover: 'hover:border-emerald-200',
               },
-            ].map(({ title, description, to, icon, accent, bg, border, hover }) => (
+            ] as { title: string; description: string; to: string; Icon: ComponentType<{ className?: string }>; accent: string; bg: string; border: string; hover: string }[]).map(({ title, description, to, Icon, accent, bg, border, hover }) => (
               <Link
                 key={to}
                 to={to}
                 className={`group relative block rounded-2xl border-2 ${border} ${bg} p-6 sm:p-8 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-lg active:scale-[0.99] ${hover}`}
               >
-                <div className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-2xl shadow-lg`}>
-                  {icon}
+                <div className={`inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg`}>
+                  <Icon className="w-7 h-7" />
                 </div>
                 <h3 className="mt-6 text-xl font-700 text-slate-900 group-hover:text-slate-800 transition-colors">
                   {title}

@@ -135,6 +135,14 @@ export async function deleteTopic(topicId: string): Promise<boolean> {
 }
 
 export async function deleteReply(replyId: string): Promise<boolean> {
+  const { data: row } = await supabase.from('forum_replies').select('topic_id').eq('id', replyId).maybeSingle()
+  const topicId = row?.topic_id as string | undefined
+  if (topicId) {
+    const { data: topic } = await supabase.from('forum_topics').select('best_reply_id').eq('id', topicId).maybeSingle()
+    if (topic?.best_reply_id === replyId) {
+      await supabase.from('forum_topics').update({ best_reply_id: null }).eq('id', topicId)
+    }
+  }
   const { error } = await supabase.from('forum_replies').delete().eq('id', replyId)
   return !error
 }

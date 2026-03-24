@@ -1,39 +1,53 @@
+import type { ComponentType } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  IconApple,
+  IconBookOpen,
+  IconDocumentText,
+  IconMegaphone,
+  IconSparkles,
+} from '../components/UiIcons'
 
-const items = [
+const items: {
+  to: string
+  label: string
+  description: string
+  Icon: ComponentType<{ className?: string }>
+  gradient: string
+}[] = [
   {
     to: '/bilgi',
     label: 'Diyabet Bilgisi',
     description: 'Tip 1, Tip 2, beslenme, egzersiz ve günlük yaşam hakkında güvenilir, kategorize edilmiş bilgiler.',
-    icon: '📚',
+    Icon: IconBookOpen,
     gradient: 'from-sky-500 to-sky-600',
   },
   {
     to: '/makaleler',
     label: 'Makaleler',
     description: 'Uzman yazıları ve güncel diyabet makaleleri ile bilgi dağarcığınızı genişletin.',
-    icon: '📄',
+    Icon: IconDocumentText,
     gradient: 'from-emerald-500 to-emerald-600',
   },
   {
     to: '/tarifler',
     label: 'Tarifler',
     description: 'Diyabete uygun, lezzetli ve sağlıklı tarifler. Öğün planlamanıza destek.',
-    icon: '🍽️',
+    Icon: IconApple,
     gradient: 'from-amber-500 to-amber-600',
   },
   {
     to: '/hikayeler',
     label: 'Hikayeler',
     description: 'Diyabetle yaşayanların başarı ve deneyim hikayeleri. İlham ve dayanışma.',
-    icon: '✨',
+    Icon: IconSparkles,
     gradient: 'from-violet-500 to-violet-600',
   },
   {
     to: '/haberler-duyurular',
     label: 'Haberler ve Duyurular',
     description: 'Diyabet dünyasından haberler, duyurular ve güncel gelişmeler.',
-    icon: '📢',
+    Icon: IconMegaphone,
     gradient: 'from-rose-500 to-rose-600',
   },
 ]
@@ -53,22 +67,22 @@ export default function Icerik() {
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-12 md:py-16">
         <div className="grid sm:grid-cols-2 gap-6">
-          {items.map((item) => (
+          {items.map(({ to, label, description, Icon, gradient }) => (
             <Link
-              key={item.to}
-              to={item.to}
+              key={to}
+              to={to}
               className="group flex flex-col sm:flex-row gap-4 p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md hover:border-slate-300 transition-all text-left"
             >
               <div
-                className={`shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${item.gradient} flex items-center justify-center text-2xl sm:text-3xl shadow-lg`}
+                className={`shrink-0 w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white shadow-lg`}
               >
-                {item.icon}
+                <Icon className="w-7 h-7 sm:w-8 sm:h-8" />
               </div>
               <div className="min-w-0">
                 <h2 className="text-lg font-700 text-slate-900 group-hover:text-diapal-600 transition-colors">
-                  {item.label}
+                  {label}
                 </h2>
-                <p className="mt-1 text-sm text-slate-600 leading-relaxed">{item.description}</p>
+                <p className="mt-1 text-sm text-slate-600 leading-relaxed">{description}</p>
                 <span className="mt-3 inline-flex items-center gap-1 text-sm font-600 text-diapal-600 group-hover:gap-2 transition-all">
                   İncele
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

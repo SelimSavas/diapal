@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { getAssistantReply } from '../lib/assistant'
+import { IconChatBubble } from './UiIcons'
 
 type Message = { role: 'user' | 'bot'; text: string }
 
@@ -80,7 +81,7 @@ export default function DiapalAsistan() {
         >
           <div className="flex items-center justify-between px-4 py-3 bg-diapal-600 text-white">
             <div className="flex items-center gap-2">
-              <span className="text-xl" aria-hidden>💬</span>
+              <IconChatBubble className="w-6 h-6 shrink-0 text-white" aria-hidden />
               <span className="font-700">Diapal Asistan</span>
             </div>
             <button
@@ -156,7 +157,7 @@ export default function DiapalAsistan() {
         style={{ bottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}
         aria-label={open ? 'Asistanı kapat' : 'Diapal Asistanı aç'}
       >
-        <span className="text-xl" aria-hidden>💬</span>
+        <IconChatBubble className="w-5 h-5 shrink-0 text-white" aria-hidden />
         <span className="font-600 text-sm hidden sm:inline">Diapal Asistan</span>
       </button>
     </>

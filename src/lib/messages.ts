@@ -150,3 +150,13 @@ export function getOtherParticipant(
 ): { userId: string; userName: string } | null {
   return conv.participants.find((p) => p.userId !== currentUserId) ?? null
 }
+
+export async function deleteMessage(messageId: string): Promise<boolean> {
+  const { error } = await supabase.from('messages').delete().eq('id', messageId)
+  return !error
+}
+
+export async function deleteConversation(conversationId: string): Promise<boolean> {
+  const { error } = await supabase.from('conversations').delete().eq('id', conversationId)
+  return !error
+}

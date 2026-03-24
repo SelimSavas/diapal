@@ -12,6 +12,7 @@ export default function DoktorDetay() {
   const doctor = id ? getDoctorById(id) : undefined
   const [profileBio, setProfileBio] = useState<string | null>(null)
   const [profilePhone, setProfilePhone] = useState<string | null>(null)
+  const [profileAvatarUrl, setProfileAvatarUrl] = useState<string | null>(null)
 
   useEffect(() => {
     if (!id) return
@@ -19,9 +20,11 @@ export default function DoktorDetay() {
       if (p) {
         setProfileBio(p.bio)
         setProfilePhone(p.phone)
+        setProfileAvatarUrl(p.avatarUrl)
       } else {
         setProfileBio(null)
         setProfilePhone(null)
+        setProfileAvatarUrl(null)
       }
     })
   }, [id])
@@ -77,9 +80,15 @@ export default function DoktorDetay() {
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-sm">
         <div className="p-6 md:p-8">
           <div className="flex flex-col sm:flex-row sm:items-start gap-4">
-            <div className="w-20 h-20 rounded-full bg-diapal-100 flex items-center justify-center text-diapal-600 font-700 text-2xl shrink-0">
-              {doctor.name.split(' ')[1]?.[0] ?? 'D'}
-            </div>
+            {profileAvatarUrl?.trim() ? (
+              <div className="w-20 h-20 rounded-full overflow-hidden bg-diapal-100 shrink-0 ring-2 ring-white shadow">
+                <img src={profileAvatarUrl.trim()} alt="" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="w-20 h-20 rounded-full bg-diapal-100 flex items-center justify-center text-diapal-600 font-700 text-2xl shrink-0">
+                {doctor.name.split(/\s+/).filter(Boolean).pop()?.[0] ?? 'D'}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-2xl font-800 text-slate-900">{doctor.name}</h1>
@@ -100,12 +109,11 @@ export default function DoktorDetay() {
               </div>
               <p className="text-slate-600 font-500">{doctor.branch}</p>
               <p className="text-slate-500 text-sm">{doctor.city}</p>
-              <div className="mt-2 flex items-center gap-2">
-                <span className="text-amber-600 font-500 text-sm">★ {doctor.rating}</span>
-                {doctor.online && (
+              {doctor.online && (
+                <div className="mt-2 flex items-center gap-2">
                   <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Online</span>
-                )}
-              </div>
+                </div>
+              )}
               {(doctor.bio || profileBio) && <p className="mt-4 text-slate-600">{doctor.bio || profileBio}</p>}
               {(doctor.phone || profilePhone) && <p className="mt-2 text-sm text-slate-500">İletişim: {doctor.phone || profilePhone}</p>}
             </div>

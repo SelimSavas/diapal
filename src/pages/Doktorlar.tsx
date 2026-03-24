@@ -1,13 +1,35 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { getDoctors, DOCTOR_FILTERS } from '../lib/doctors'
+import { getDoctorAvatarUrls } from '../lib/doctorProfiles'
 import { isFavorite, toggleFavorite } from '../lib/favorites'
+
+function DoctorAvatar({ name, url, size = 'md' }: { name: string; url?: string | null; size?: 'md' | 'lg' }) {
+  const initial = name.split(/\s+/).filter(Boolean).pop()?.[0] ?? name[0] ?? 'D'
+  const wrap =
+    size === 'lg'
+      ? 'w-20 h-20 text-2xl'
+      : 'w-14 h-14 text-lg'
+  if (url?.trim()) {
+    return (
+      <div className={`${wrap} rounded-full overflow-hidden bg-diapal-100 shrink-0 ring-2 ring-white shadow-sm`}>
+        <img src={url.trim()} alt="" className="w-full h-full object-cover" />
+      </div>
+    )
+  }
+  return (
+    <div className={`${wrap} rounded-full bg-diapal-100 flex items-center justify-center text-diapal-600 font-700 shrink-0`}>
+      {initial}
+    </div>
+  )
+}
 
 export default function Doktorlar() {
   const { user } = useAuth()
   const [selectedFilter, setSelectedFilter] = useState('Tümü')
   const [favVersion, setFavVersion] = useState(0)
+  const [avatarById, setAvatarById] = useState<Record<string, string | null>>({})
 
   const doctors = useMemo(() => {
     const list = getDoctors()
@@ -15,6 +37,15 @@ export default function Doktorlar() {
     if (selectedFilter === 'Online') return list.filter((d) => d.online)
     return list.filter((d) => d.branch.includes(selectedFilter))
   }, [selectedFilter, favVersion])
+
+  useEffect(() => {
+    const ids = doctors.map((d) => d.id)
+    if (ids.length === 0) {
+      setAvatarById({})
+      return
+    }
+    getDoctorAvatarUrls(ids).then(setAvatarById)
+  }, [doctors])
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 md:py-16">
@@ -53,15 +84,12 @@ export default function Doktorlar() {
               className="p-6 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
             >
               <div className="flex gap-4">
-                <div className="w-14 h-14 rounded-full bg-diapal-100 flex items-center justify-center text-diapal-600 font-700 text-lg shrink-0">
-                  {doc.name.split(' ')[1]?.[0] ?? 'D'}
-                </div>
+                <DoctorAvatar name={doc.name} url={avatarById[doc.id]} />
                 <div>
                   <h2 className="text-lg font-700 text-slate-900">{doc.name}</h2>
                   <p className="text-slate-600 text-sm">{doc.branch}</p>
                   <p className="text-slate-500 text-sm">{doc.city}</p>
                   <div className="mt-1 flex items-center gap-2">
-                    <span className="text-amber-600 font-500 text-sm">★ {doc.rating}</span>
                     {doc.online && (
                       <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">Online</span>
                     )}
@@ -102,8 +130,7 @@ export default function Doktorlar() {
       </div>
 
       <p className="mt-8 text-center text-slate-500 text-sm">
-        Doktorsanız ve Diapal’a katılmak istiyorsanız{' '}
-        <Link to="/kayit" className="text-diapal-600 font-500 hover:underline">kayıt olurken</Link> “Doktor” olarak seçin.
+        Doktor hesapları yönetici tarafından oluşturulur; profil fotoğrafı ve bilgileri doktor panelinden güncellenebilir.
       </p>
     </div>
   )

@@ -8,6 +8,7 @@ import {
   ensureProgressLoaded,
   type UserChallengeProgress,
 } from '../lib/challenges'
+import { BadgeIconById, DailyChallengeIcon, IconCheckCircle, IconSparkles } from '../components/UiIcons'
 
 export default function GunlukGorevler() {
   const { user } = useAuth()
@@ -31,8 +32,8 @@ export default function GunlukGorevler() {
     return (
       <div className="min-h-[60vh] flex items-center justify-center px-4">
         <div className="max-w-md w-full rounded-3xl bg-white border border-slate-200/80 shadow-xl shadow-slate-200/50 p-8 text-center">
-          <div className="w-16 h-16 mx-auto rounded-2xl bg-diapal-100 flex items-center justify-center text-3xl mb-6">
-            ✅
+          <div className="w-16 h-16 mx-auto rounded-2xl bg-diapal-100 flex items-center justify-center text-diapal-600 mb-6">
+            <IconCheckCircle className="w-10 h-10" />
           </div>
           <h1 className="text-2xl font-800 text-slate-900">Üyelere özel</h1>
           <p className="mt-3 text-slate-600 leading-relaxed">
@@ -101,7 +102,7 @@ export default function GunlukGorevler() {
                 <p className="text-2xl font-800 text-diapal-600">{totalPoints}</p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-diapal-100 flex items-center justify-center text-diapal-700 font-800 text-lg">
-                {progressPercent >= 100 ? '✓' : `${Math.round(progressPercent)}%`}
+                {progressPercent >= 100 ? <IconCheckCircle className="w-7 h-7" /> : `${Math.round(progressPercent)}%`}
               </div>
             </div>
           </div>
@@ -116,7 +117,7 @@ export default function GunlukGorevler() {
         {/* Görevler */}
         <section className="mb-12">
           <h2 className="text-xl font-800 text-slate-900 mb-5 flex items-center gap-2">
-            <span className="text-2xl">🎯</span>
+            <IconSparkles className="w-7 h-7 text-diapal-600 shrink-0" />
             Bugünün meydan okumaları
           </h2>
           <ul className="space-y-3">
@@ -133,11 +134,15 @@ export default function GunlukGorevler() {
                 >
                   <label className="flex cursor-pointer items-start gap-4">
                     <span
-                      className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl transition-colors ${
+                      className={`shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
                         done ? 'bg-diapal-500 text-white' : 'bg-slate-100 text-slate-500'
                       }`}
                     >
-                      {done ? '✓' : challenge.icon}
+                      {done ? (
+                        <IconCheckCircle className="w-6 h-6 text-white" />
+                      ) : (
+                        <DailyChallengeIcon iconKey={challenge.iconKey} className="w-5 h-5 text-diapal-600" />
+                      )}
                     </span>
                     <input
                       type="checkbox"
@@ -162,7 +167,7 @@ export default function GunlukGorevler() {
         {/* Rozetler */}
         <section>
           <h2 className="text-xl font-800 text-slate-900 mb-2 flex items-center gap-2">
-            <span className="text-2xl">🏅</span>
+            <IconSparkles className="w-7 h-7 text-amber-500 shrink-0" />
             Rozetlerim
           </h2>
           <p className="text-slate-600 mb-6">
@@ -174,7 +179,7 @@ export default function GunlukGorevler() {
                 key={badge.id}
                 className="rounded-2xl border-2 border-diapal-200 bg-gradient-to-br from-diapal-50 to-white p-4 text-center shadow-sm"
               >
-                <span className="text-3xl">{badge.icon}</span>
+                <BadgeIconById badgeId={badge.id} className="w-10 h-10 text-amber-600 mx-auto" />
                 <p className="mt-2 text-sm font-700 text-slate-900">{badge.name}</p>
                 <p className="mt-0.5 text-xs text-slate-600 leading-snug">{badge.description}</p>
               </div>
@@ -184,7 +189,7 @@ export default function GunlukGorevler() {
                 key={badge.id}
                 className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-center opacity-80"
               >
-                <span className="text-3xl grayscale opacity-80">{badge.icon}</span>
+                <BadgeIconById badgeId={badge.id} className="w-10 h-10 text-slate-400 grayscale opacity-80 mx-auto" />
                 <p className="mt-2 text-sm font-600 text-slate-500">{badge.name}</p>
                 <p className="mt-0.5 text-xs text-slate-400">{badge.requirement}</p>
               </div>

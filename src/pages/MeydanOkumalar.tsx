@@ -10,6 +10,7 @@ import {
   ensureProgressLoaded,
   type UserChallengeProgress,
 } from '../lib/challenges'
+import { BadgeIconById, DailyChallengeIcon, IconCheckCircle } from '../components/UiIcons'
 
 const TODAY = new Date().toISOString().slice(0, 10)
 
@@ -86,7 +87,7 @@ export default function MeydanOkumalar() {
                   done ? 'bg-green-50 border-green-200' : 'bg-white border-slate-200'
                 }`}
               >
-                <span className="text-2xl">{c.icon}</span>
+                <DailyChallengeIcon iconKey={c.iconKey} className="w-8 h-8 text-diapal-600 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <h3 className="font-600 text-slate-900">{c.title}</h3>
                   <p className="text-sm text-slate-600">{c.description}</p>
@@ -101,7 +102,14 @@ export default function MeydanOkumalar() {
                       : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                   }`}
                 >
-                  {done ? 'Tamamlandı ✓' : 'Tamamla'}
+                  {done ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      Tamamlandı
+                      <IconCheckCircle className="w-4 h-4" />
+                    </span>
+                  ) : (
+                    'Tamamla'
+                  )}
                 </button>
               </li>
             )
@@ -122,13 +130,13 @@ export default function MeydanOkumalar() {
                   earned ? 'bg-amber-50 border-amber-200' : 'bg-slate-50 border-slate-200 opacity-75'
                 }`}
               >
-                <span className="text-3xl">{b.icon}</span>
+                <BadgeIconById badgeId={b.id} className="w-10 h-10 text-amber-600 shrink-0" />
                 <div className="min-w-0">
                   <h3 className="font-600 text-slate-900">{b.name}</h3>
                   <p className="text-sm text-slate-600">{b.description}</p>
                   <p className="text-xs text-slate-500">{b.requirement}</p>
                 </div>
-                {earned && <span className="shrink-0 text-amber-600 font-600 text-sm">✓</span>}
+                {earned && <IconCheckCircle className="w-5 h-5 shrink-0 text-amber-600" aria-hidden />}
               </div>
             )
           })}

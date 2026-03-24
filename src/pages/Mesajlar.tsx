@@ -7,6 +7,8 @@ import {
   sendMessage,
   getOrCreateConversation,
   getOtherParticipant,
+  deleteMessage,
+  deleteConversation,
   type Conversation,
   type Message,
 } from '../lib/messages'
@@ -105,6 +107,25 @@ export default function Mesajlar() {
     setSelectedConv(c)
   }
 
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!confirm('Bu mesajı silmek istediğinize emin misiniz?')) return
+    const ok = await deleteMessage(msgId)
+    if (ok && selectedConv) {
+      setMessages((prev) => prev.filter((m) => m.id !== msgId))
+    }
+  }
+
+  const handleDeleteConversation = async () => {
+    if (!selectedConv || !user) return
+    if (!confirm('Bu sohbeti ve tüm mesajları silmek istediğinize emin misiniz?')) return
+    const ok = await deleteConversation(selectedConv.id)
+    if (ok) {
+      setConversations((prev) => prev.filter((c) => c.id !== selectedConv.id))
+      setSelectedConv(null)
+      setMessages([])
+    }
+  }
+
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user || !selectedConv || !input.trim()) return
@@ -180,10 +201,17 @@ export default function Mesajlar() {
             </div>
           ) : (
             <>
-              <div className="p-3 border-b border-slate-200 bg-slate-50">
+              <div className="p-3 border-b border-slate-200 bg-slate-50 flex items-center justify-between gap-2">
                 <p className="font-600 text-slate-900">
                   {getOtherParticipant(selectedConv, user.id)?.userName ?? 'Sohbet'}
                 </p>
+                <button
+                  type="button"
+                  onClick={handleDeleteConversation}
+                  className="text-xs font-500 text-rose-600 hover:underline shrink-0"
+                >
+                  Sohbeti sil
+                </button>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {loadingMsg ? (
@@ -194,7 +222,7 @@ export default function Mesajlar() {
                     return (
                       <div
                         key={m.id}
-                        className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                        className={`flex flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}
                       >
                         <div
                           className={`max-w-[80%] rounded-2xl px-4 py-2 ${
@@ -206,6 +234,15 @@ export default function Mesajlar() {
                             {new Date(m.createdAt).toLocaleString('tr-TR')}
                           </p>
                         </div>
+                        {isMe && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteMessage(m.id)}
+                            className="text-xs text-rose-600 hover:underline"
+                          >
+                            Sil
+                          </button>
+                        )}
                       </div>
                     )
                   })

@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import {
   getTopic,
   getRepliesForTopic,
   addReply,
+  deleteReply,
+  deleteTopic,
   formatRelativeDate,
   setBestAnswer,
   getReplyLikeCountsForTopic,
@@ -17,6 +19,7 @@ import { addNotification } from '../lib/notifications'
 
 export default function ForumTopic() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const [topic, setTopic] = useState<Awaited<ReturnType<typeof getTopic>>>(undefined)
   const [replies, setReplies] = useState<Awaited<ReturnType<typeof getRepliesForTopic>>>([])
@@ -59,6 +62,25 @@ export default function ForumTopic() {
     load().finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
   }, [id, user?.id, metaVersion])
+
+  const handleDeleteTopic = async () => {
+    if (!id || !user || !topic) return
+    if (user.id !== topic.authorId && user.role !== 'admin') return
+    if (!confirm('Bu konuyu ve tüm yanıtları silmek istediğinize emin misiniz?')) return
+    const ok = await deleteTopic(id)
+    if (ok) navigate('/forum')
+  }
+
+  const handleDeleteReply = async (replyId: string) => {
+    if (!user || !id) return
+    if (!confirm('Bu yanıtı silmek istediğinize emin misiniz?')) return
+    const ok = await deleteReply(replyId)
+    if (ok) {
+      const next = await getRepliesForTopic(id)
+      setReplies(next)
+      setMetaVersion((v) => v + 1)
+    }
+  }
 
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -107,6 +129,9 @@ export default function ForumTopic() {
     )
   }
 
+  const canDeleteTopic = user && (user.id === topic.authorId || user.role === 'admin')
+  const canDeleteReply = (authorId: string) => user && (user.id === authorId || user.role === 'admin')
+
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 md:py-16">
       <Link to="/forum" className="text-sm text-diapal-600 font-500 hover:underline mb-6 inline-block">
@@ -119,15 +144,26 @@ export default function ForumTopic() {
             <span className="text-xs font-600 text-diapal-700 bg-diapal-100 px-2.5 py-1 rounded-lg">
               {topic.category}
             </span>
-            {user && (
-              <button
-                type="button"
-                onClick={async () => { if (id) { await toggleSubscription(id, user.id); setSubscribed(await isSubscribed(id, user.id)); setMetaVersion((v) => v + 1) } }}
-                className={`text-sm font-500 px-3 py-1.5 rounded-lg ${subscribed ? 'bg-diapal-100 text-diapal-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
-              >
-                {subscribed ? 'Takip ediliyor ✓' : 'Konuyu takip et'}
-              </button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {canDeleteTopic && (
+                <button
+                  type="button"
+                  onClick={handleDeleteTopic}
+                  className="text-sm font-500 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100"
+                >
+                  Konuyu sil
+                </button>
+              )}
+              {user && (
+                <button
+                  type="button"
+                  onClick={async () => { if (id) { await toggleSubscription(id, user.id); setSubscribed(await isSubscribed(id, user.id)); setMetaVersion((v) => v + 1) } }}
+                  className={`text-sm font-500 px-3 py-1.5 rounded-lg ${subscribed ? 'bg-diapal-100 text-diapal-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                >
+                  {subscribed ? 'Takip ediliyor' : 'Konuyu takip et'}
+                </button>
+              )}
+            </div>
           </div>
           <h1 className="mt-3 text-xl md:text-2xl font-700 text-slate-900">
             {topic.title}
@@ -175,7 +211,16 @@ export default function ForumTopic() {
                         {reply.body}
                       </p>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                      {canDeleteReply(reply.authorId) && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteReply(reply.id)}
+                          className="text-xs font-500 text-rose-600 hover:underline"
+                        >
+                          Sil
+                        </button>
+                      )}
                       {isTopicAuthor && !isBest && (
                         <button
                           type="button"

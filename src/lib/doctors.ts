@@ -4,9 +4,10 @@ export type Doctor = {
   branch: string
   city: string
   online: boolean
-  rating: number
   bio?: string
   phone?: string
+  /** Supabase doctor_profiles.avatar_url (liste/detayda ayrı yüklenir) */
+  avatarUrl?: string | null
 }
 
 export const DOCTOR_FILTERS = ['Tümü', 'Endokrinoloji', 'İç Hastalıkları', 'Online'] as const
@@ -28,7 +29,6 @@ const SEED_DOCTORS: Doctor[] = [
     branch: 'Endokrinoloji',
     city: 'İstanbul',
     online: true,
-    rating: 4.9,
     bio: 'Diyabet ve tiroid hastalıkları üzerine uzman. 15 yıllık deneyim.',
     phone: '+90 212 XXX XX XX',
   },
@@ -38,7 +38,6 @@ const SEED_DOCTORS: Doctor[] = [
     branch: 'İç Hastalıkları',
     city: 'Ankara',
     online: true,
-    rating: 4.8,
     bio: 'İç hastalıkları ve diyabet takibi. Online danışmanlık veriyorum.',
     phone: '+90 312 XXX XX XX',
   },
@@ -48,7 +47,6 @@ const SEED_DOCTORS: Doctor[] = [
     branch: 'Endokrinoloji',
     city: 'İzmir',
     online: false,
-    rating: 4.7,
     bio: 'Endokrinoloji ve metabolizma hastalıkları.',
     phone: '+90 232 XXX XX XX',
   },
@@ -58,7 +56,6 @@ const SEED_DOCTORS: Doctor[] = [
     branch: 'Endokrinoloji',
     city: 'İstanbul',
     online: true,
-    rating: 5.0,
     bio: 'Tip 1 ve Tip 2 diyabet, insülin pompası deneyimi.',
     phone: '+90 212 XXX XX XX',
   },
@@ -84,7 +81,6 @@ export function getDoctors(): Doctor[] {
     branch: u.branch || 'Doktor',
     city: u.city || '',
     online: true,
-    rating: 5,
   }))
 }
 
