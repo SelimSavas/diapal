@@ -14,7 +14,7 @@ export default function SifreYenile() {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
     if (!token) {
@@ -30,7 +30,7 @@ export default function SifreYenile() {
       return
     }
     setSaving(true)
-    const result = completePasswordReset(token, password)
+    const result = await completePasswordReset(token, password)
     setSaving(false)
     if (result.ok) {
       navigate('/giris', { replace: true, state: { passwordResetOk: true } })

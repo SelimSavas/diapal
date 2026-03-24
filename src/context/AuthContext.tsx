@@ -2,9 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useState } from 'rea
 import {
   createPasswordResetToken,
   isPasswordResetEmailConfigured,
-  peekValidPasswordResetEmail,
+  markPasswordResetNonceUsed,
   removePasswordResetToken,
   sendPasswordResetEmail,
+  verifyPasswordResetToken,
 } from '../lib/passwordReset'
 
 export type UserRole = 'hasta' | 'doktor' | 'admin'
@@ -151,7 +152,7 @@ type AuthContextValue = {
   getUsersPublicWithRole: () => { id: string; name: string; role: UserRole }[]
   /** E-posta kayıtlıysa sıfırlama bağlantısı gönderir (adres yoksa da başarı döner). */
   requestPasswordReset: (email: string) => Promise<{ ok: boolean; error?: string }>
-  completePasswordReset: (token: string, newPassword: string) => { ok: boolean; error?: string }
+  completePasswordReset: (token: string, newPassword: string) => Promise<{ ok: boolean; error?: string }>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -347,7 +348,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { ok: true }
     }
     try {
-      const token = createPasswordResetToken(found.email)
+      const token = await createPasswordResetToken(found.email)
       const base = import.meta.env.BASE_URL.replace(/\/$/, '')
       const resetLink = `${window.location.origin}${base}/sifre-yenile?token=${encodeURIComponent(token)}`
       await sendPasswordResetEmail(found.email, resetLink)
@@ -360,20 +361,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [])
 
-  const completePasswordReset = useCallback((token: string, newPassword: string) => {
+  const completePasswordReset = useCallback(async (token: string, newPassword: string) => {
     if (newPassword.length < 6) {
       return { ok: false, error: 'Şifre en az 6 karakter olmalıdır.' }
     }
-    const email = peekValidPasswordResetEmail(token)
-    if (!email) {
+    const v = await verifyPasswordResetToken(token)
+    if (!v) {
       return { ok: false, error: 'Bağlantı geçersiz veya süresi dolmuş. Yeni sıfırlama isteyin.' }
     }
     const users = loadUsers()
-    const idx = users.findIndex((u) => u.email.toLowerCase() === email.toLowerCase())
+    const idx = users.findIndex((u) => u.email.toLowerCase() === v.email.toLowerCase())
     if (idx === -1) return { ok: false, error: 'Kullanıcı bulunamadı.' }
     users[idx] = { ...users[idx], password: newPassword }
     saveUsers(users)
-    removePasswordResetToken(token)
+    if (v.nonce) {
+      markPasswordResetNonceUsed(v.nonce)
+    } else {
+      removePasswordResetToken(token)
+    }
     return { ok: true }
   }, [])
 
